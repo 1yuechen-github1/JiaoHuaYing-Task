@@ -170,73 +170,119 @@ def create_coordinate_frame(center, x_axis, y_axis, z_axis, scale=1.0):
     return x_line, y_line, z_line
 
 
-def get_jhy_h(jhy_points,jhy_center,cent_list, step_mm, file):
-    sample_axis = cent_list[1]  # 这是采样方向
-    projections = np.dot(jhy_points, sample_axis)
-    proj_min = np.min(projections)
-    proj_max = np.max(projections)
-    sample_positions = np.arange(proj_min, proj_max, step_mm)
-    slices = []
-    pcd_list = []
-    dist_list = []
-    for pos in sample_positions:
-        # 找到在当前位置附近的点
-        tolerance = step_mm / 50.0
-        # print(tolerance, step_mm)
-        mask = np.abs(projections - pos) <= tolerance
-        if np.any(mask):
-            slice_points = jhy_points[mask]
-            dist = get_len(slice_points,sample_axis)
-            dist_list.append(dist)
-            pcd = get_poin_list(slice_points,[[0, 0, 1]])
-            pcd_list.append(pcd)
-    return  pcd_list,dist_list
+# def get_jhy_h(jhy_points,jhy_center,cent_list, step_mm, file):
+#     sample_axis = cent_list[1]  # 这是采样方向
+#     projections = np.dot(jhy_points, sample_axis)
+#     proj_min = np.min(projections)
+#     proj_max = np.max(projections)
+#     sample_positions = np.arange(proj_min, proj_max, step_mm)
+#     slices = []
+#     pcd_list = []
+#     dist_list = []
+#     for pos in sample_positions:
+#         # 找到在当前位置附近的点
+#         tolerance = step_mm / 50.0
+#         # print(tolerance, step_mm)
+#         mask = np.abs(projections - pos) <= tolerance
+#         if np.any(mask):
+#             slice_points = jhy_points[mask]
+#             dist = get_len(slice_points,sample_axis)
+#             dist_list.append(dist)
+#             pcd = get_poin_list(slice_points,[[0, 0, 1]])
+#             pcd_list.append(pcd)
+#     return  pcd_list,dist_list
 
-def get_jhy_w(jhy_points,jhy_center,cent_list, step_mm, file):
-    sample_axis = cent_list[0]  # 这是采样方向
+# def get_jhy_w(jhy_points,jhy_center,cent_list, step_mm, file):
+#     sample_axis = cent_list[0]  # 这是采样方向
+#     projections = np.dot(jhy_points, sample_axis)
+#     proj_min = np.min(projections)
+#     proj_max = np.max(projections)
+#     sample_positions = np.arange(proj_min, proj_max, step_mm)
+#     slices = []
+#     pcd_list = []
+#     dist_list = []
+#     for pos in sample_positions:
+#         # 找到在当前位置附近的点
+#         tolerance = step_mm / 50.0
+#         mask = np.abs(projections - pos) <= tolerance
+#         if np.any(mask):
+#             slice_points = jhy_points[mask]
+#             dist = get_len(slice_points,sample_axis)
+#             dist_list.append(dist)
+#             pcd = get_poin_list(slice_points,[[0, 0, 1]])
+#             pcd_list.append(pcd)
+#     return  pcd_list,dist_list
+
+# X轴 (黑色) Y轴 (绿色) Z轴 (蓝色)
+def get_jhy_w(jhy_points, cent_list, step_mm=1.0):
+    """
+    只在中心及上下 1mm 位置做 3 个切片
+    """
+    sample_axis = cent_list[0]          # 采样方向（单位向量）
+    center = np.mean(jhy_points, axis=0)
+    # 所有点在采样轴上的投影
     projections = np.dot(jhy_points, sample_axis)
-    proj_min = np.min(projections)
-    proj_max = np.max(projections)
-    sample_positions = np.arange(proj_min, proj_max, step_mm)
-    slices = []
+    center_proj = np.dot(center, sample_axis)
+    # 三个切片位置（mm）
+    slice_positions = [
+        center_proj,
+        center_proj - step_mm,
+        center_proj + step_mm,
+        center_proj - step_mm * 2,
+        center_proj + step_mm * 2,
+        center_proj - step_mm * 3,
+        center_proj + step_mm * 3
+    ]
+    tolerance = step_mm / 50.0  # 切片厚度
     pcd_list = []
     dist_list = []
-    for pos in sample_positions:
-        # 找到在当前位置附近的点
-        tolerance = step_mm / 50.0
+    for pos in slice_positions:
         mask = np.abs(projections - pos) <= tolerance
         if np.any(mask):
             slice_points = jhy_points[mask]
-            dist = get_len(slice_points,sample_axis)
+            dist = get_len(slice_points, sample_axis)
             dist_list.append(dist)
-            pcd = get_poin_list(slice_points,[[0, 0, 1]])
+            pcd = get_poin_list(slice_points, [[0, 0, 1]])
             pcd_list.append(pcd)
-    return  pcd_list,dist_list
-#
-# def get_len(points, axis):
-#     # return 0;
-#     end_idx = len(points) - 1
-#     start_idx = 0
-#     diffs = np.diff(points[start_idx:end_idx + 1], axis=0)
-#     distances = np.sqrt(np.sum(diffs ** 2, axis=1))
-#     geodesic_distance = np.sum(distances)
-#
-#     # axis = np.argmax(np.abs(axis))
-#     # sorted_indices = np.argsort(points[:, axis])
-#     # sorted_points = points[sorted_indices]
-#     # # 2. 计算相邻点距离
-#     # diffs = np.diff(sorted_points, axis=0)
-#     # distances = np.sqrt(np.sum(diffs ** 2, axis=1))
-#     # # 3. 过滤异常距离（点云可能不连续）
-#     # median_dist = np.median(distances)
-#     # std_dist = np.std(distances)
-#     # # 移除距离大于3倍标准差的异常值
-#     # threshold = median_dist + 3 * std_dist
-#     # valid_distances = distances[distances < threshold]
-#     # total_length = np.sum(valid_distances)
-#
-#     return geodesic_distance
-#
+        else:
+            dist_list.append(0)
+    return pcd_list, dist_list
+
+
+def get_jhy_h(jhy_points, cent_list, step_mm=1.0):
+    """
+    只在中心及上下 1mm 位置做 3 个切片
+    """
+    sample_axis = cent_list[1]          # 采样方向（单位向量）
+    center = np.mean(jhy_points, axis=0)
+    # 所有点在采样轴上的投影
+    projections = np.dot(jhy_points, sample_axis)
+    center_proj = np.dot(center, sample_axis)
+    #
+    # index_list = [0, -1, 1, -2, 2, -3, 3]
+    slice_positions = [
+        center_proj,
+        center_proj - step_mm,
+        center_proj + step_mm,
+        center_proj - step_mm * 2,
+        center_proj + step_mm * 2,
+        center_proj - step_mm * 3,
+        center_proj + step_mm * 3
+    ]
+    tolerance = step_mm / 50.0  # 切片厚度
+    pcd_list = []
+    dist_list = []
+    for pos in slice_positions:
+        mask = np.abs(projections - pos) <= tolerance
+        if np.any(mask):
+            slice_points = jhy_points[mask]
+            dist = get_len(slice_points, sample_axis)
+            dist_list.append(dist)
+            pcd = get_poin_list(slice_points, [[0, 0, 1]])
+            pcd_list.append(pcd)
+        else:
+            dist_list.append(0)
+    return pcd_list, dist_list
 
 def get_len(points, axis):
     pts_centered = points - points.mean(axis=0)

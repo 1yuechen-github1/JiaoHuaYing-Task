@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import copy
 
 
-path = r"C:\yuechen\code\jiaohuaying\1.code\0105\data\1106\网络"
-output = r"C:\yuechen\code\jiaohuaying\1.code\0105\data\1106\网络\output"
+path = r"C:\yuechen\code\jiaohuaying\1.code\0110\data\1106"
+output = r"C:\yuechen\code\jiaohuaying\1.code\0110\data\output\医生"
 
 for file in os.listdir(path):
     print(file)
@@ -18,9 +18,10 @@ for file in os.listdir(path):
     points = dy_obj[:,:3]
     colors = dy_obj[:,3:6]
     colors = colors / 255.0 
-    # scalar = dy_obj[:,8:9]
+    # 网络
     # scalar = dy_obj[:, -1]
-    scalar = dy_obj[:, -1]  # (N,)
+    # 医生
+    scalar = dy_obj[:,6:7]  # (N,)
     scalar = scalar.astype(float)
 
     pcd = o3d.geometry.PointCloud()
@@ -76,8 +77,10 @@ for file in os.listdir(path):
     print('x_line, y_line, z_line',axiox1, axiox2, axiox3, jhy_poins.shape)
     cent_list = [axiox1, axiox2, axiox3,pcd1, centers_pcd]
     # 高度/宽度测量
-    pcd_list_h, dist_h= get_jhy_h(jhy_poins,jhy_center,cent_list,  1, file)
-    pcd_list_w, dist_w = get_jhy_w(jhy_poins, jhy_center, cent_list, 1, file)
+    # pcd_list_h, dist_h= get_jhy_h(jhy_poins,jhy_center,cent_list,  1, file)
+    # pcd_list_w, dist_w = get_jhy_w(jhy_poins, jhy_center, cent_list, 1, file)
+    pcd_list_h, dist_h= get_jhy_h(jhy_poins,cent_list, 1)
+    pcd_list_w, dist_w = get_jhy_w(jhy_poins, cent_list, 1)
     save_to_txt(pcd2, pcd_list_h, output, file, scalar, 'hig')
     save_to_txt(pcd2, pcd_list_w, output, file, scalar, 'wid')
 
@@ -89,11 +92,13 @@ for file in os.listdir(path):
     # pcd_list_w.extend(vis_list_w)
     # vis(pcd_list_w, f"{file} - 三轴坐标系")
 
-    with open(output+'\\' + 'jhy_h.csv', 'a') as f:
-        # 将文件名和所有列表元素用逗号连接
-        for x in dist_h:
-            f.write(f"{file},{x}\n")
+    index_list = [0, -1, 1, -2, 2, -3, 3]
 
-    with open(output +'\\' +'jhy_w.csv', 'a') as f:
-        for x in dist_w:
-            f.write(f"{file},{x}\n")
+    with open(output + '\\jhy_h.csv', 'a', encoding='utf-8-sig') as f:
+        for idx, dist in zip(index_list, dist_h):
+            f.write(f"{file}角化龈距离中心{idx}mm,{dist}\n")
+
+    with open(output + '\\jhy_w.csv', 'a', encoding='utf-8-sig') as f:
+        for idx, dist in zip(index_list, dist_w):
+            f.write(f"{file}角化龈距离中心{idx}mm,{dist}\n")
+
