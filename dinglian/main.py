@@ -9,7 +9,7 @@ import copy
 
 
 path = r"C:\yuechen\code\jiaohuaying\1.code\0110\data\1106"
-output = r"C:\yuechen\code\jiaohuaying\1.code\0110\data\output\医生"
+output = r"C:\yuechen\code\jiaohuaying\1.code\0110\data\output1\网络"
 
 for file in os.listdir(path):
     print(file)
@@ -19,9 +19,9 @@ for file in os.listdir(path):
     colors = dy_obj[:,3:6]
     colors = colors / 255.0 
     # 网络
-    # scalar = dy_obj[:, -1]
+    scalar = dy_obj[:, -1]
     # 医生
-    scalar = dy_obj[:,6:7]  # (N,)
+    # scalar = dy_obj[:,6:7]  # (N,)
     scalar = scalar.astype(float)
 
     pcd = o3d.geometry.PointCloud()

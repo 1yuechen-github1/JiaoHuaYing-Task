@@ -6,12 +6,11 @@ from scipy.spatial import Delaunay
 from collections import Counter
 import matplotlib.pyplot as plt
 
+import numpy as np
+import networkx as nx
+from sklearn.neighbors import NearestNeighbors
 
-# def vis(pcd, file):
-#     o3d.visualization.draw_geometries([pcd], 
-#                              window_name=f"Point Cloud: {file}",
-#                              width=800, 
-#                              height=600)
+
 
 def vis(pcd_list, file):
     o3d.visualization.draw_geometries(
@@ -170,48 +169,6 @@ def create_coordinate_frame(center, x_axis, y_axis, z_axis, scale=1.0):
     return x_line, y_line, z_line
 
 
-# def get_jhy_h(jhy_points,jhy_center,cent_list, step_mm, file):
-#     sample_axis = cent_list[1]  # 这是采样方向
-#     projections = np.dot(jhy_points, sample_axis)
-#     proj_min = np.min(projections)
-#     proj_max = np.max(projections)
-#     sample_positions = np.arange(proj_min, proj_max, step_mm)
-#     slices = []
-#     pcd_list = []
-#     dist_list = []
-#     for pos in sample_positions:
-#         # 找到在当前位置附近的点
-#         tolerance = step_mm / 50.0
-#         # print(tolerance, step_mm)
-#         mask = np.abs(projections - pos) <= tolerance
-#         if np.any(mask):
-#             slice_points = jhy_points[mask]
-#             dist = get_len(slice_points,sample_axis)
-#             dist_list.append(dist)
-#             pcd = get_poin_list(slice_points,[[0, 0, 1]])
-#             pcd_list.append(pcd)
-#     return  pcd_list,dist_list
-
-# def get_jhy_w(jhy_points,jhy_center,cent_list, step_mm, file):
-#     sample_axis = cent_list[0]  # 这是采样方向
-#     projections = np.dot(jhy_points, sample_axis)
-#     proj_min = np.min(projections)
-#     proj_max = np.max(projections)
-#     sample_positions = np.arange(proj_min, proj_max, step_mm)
-#     slices = []
-#     pcd_list = []
-#     dist_list = []
-#     for pos in sample_positions:
-#         # 找到在当前位置附近的点
-#         tolerance = step_mm / 50.0
-#         mask = np.abs(projections - pos) <= tolerance
-#         if np.any(mask):
-#             slice_points = jhy_points[mask]
-#             dist = get_len(slice_points,sample_axis)
-#             dist_list.append(dist)
-#             pcd = get_poin_list(slice_points,[[0, 0, 1]])
-#             pcd_list.append(pcd)
-#     return  pcd_list,dist_list
 
 # X轴 (黑色) Y轴 (绿色) Z轴 (蓝色)
 def get_jhy_w(jhy_points, cent_list, step_mm=1.0):
@@ -240,7 +197,9 @@ def get_jhy_w(jhy_points, cent_list, step_mm=1.0):
         mask = np.abs(projections - pos) <= tolerance
         if np.any(mask):
             slice_points = jhy_points[mask]
-            dist = get_len(slice_points, sample_axis)
+            # dist = get_len(slice_points, sample_axis)
+            dist = get_len(slice_points)
+            # dist = get_len(slice_points)
             dist_list.append(dist)
             pcd = get_poin_list(slice_points, [[0, 0, 1]])
             pcd_list.append(pcd)
@@ -276,7 +235,8 @@ def get_jhy_h(jhy_points, cent_list, step_mm=1.0):
         mask = np.abs(projections - pos) <= tolerance
         if np.any(mask):
             slice_points = jhy_points[mask]
-            dist = get_len(slice_points, sample_axis)
+            # dist = get_len(slice_points, sample_axis)
+            dist = get_len(slice_points)
             dist_list.append(dist)
             pcd = get_poin_list(slice_points, [[0, 0, 1]])
             pcd_list.append(pcd)
@@ -284,17 +244,60 @@ def get_jhy_h(jhy_points, cent_list, step_mm=1.0):
             dist_list.append(0)
     return pcd_list, dist_list
 
-def get_len(points, axis):
+# def get_len(points, axis):
+#     pts_centered = points - points.mean(axis=0)
+#     _, _, vh = np.linalg.svd(pts_centered, full_matrices=False)
+#     main_dir = vh[0]
+#     proj = np.dot(points, main_dir)
+#     sorted_points = points[np.argsort(proj)]
+#     diffs = np.diff(sorted_points, axis=0)
+#     dists = np.linalg.norm(diffs, axis=1)
+#     med = np.median(dists)
+#     valid = dists[dists < med * 3]  # 去掉跳点
+#     return np.sum(valid)
+
+
+
+# 算测地距离
+# def get_len(points, k=6, r=None):
+#     n = len(points)
+#     if n < 2:
+#         return 0.0
+#     k = max(2, min(k, n))
+#     nbrs = NearestNeighbors(n_neighbors=k).fit(points)
+#     dists, idx = nbrs.kneighbors(points)
+#     G = nx.Graph()
+#     for i in range(n):
+#         for j, d in zip(idx[i][1:], dists[i][1:]):
+#             if r is None or d < r:
+#                 G.add_edge(i, j, weight=d)
+#     if G.number_of_edges() == 0:
+#         return 0.0
+#     G = G.subgraph(max(nx.connected_components(G), key=len)).copy()
+#     # 稳妥找直径（测地长度）
+#     s = next(iter(G.nodes))
+#     dist_s = nx.single_source_dijkstra_path_length(G, s)
+#     t = max(dist_s, key=dist_s.get)
+#     dist_t = nx.single_source_dijkstra_path_length(G, t)
+#     u = max(dist_t, key=dist_t.get)
+#     return dist_t[u]
+
+
+
+def get_len(points):
     pts_centered = points - points.mean(axis=0)
     _, _, vh = np.linalg.svd(pts_centered, full_matrices=False)
-    main_dir = vh[0]
-    proj = np.dot(points, main_dir)
+    main_axis = vh[0]
+    proj = points @ main_axis
     sorted_points = points[np.argsort(proj)]
+    # 可选：降采样，避免点太密
+    sorted_points = sorted_points[::30]
     diffs = np.diff(sorted_points, axis=0)
     dists = np.linalg.norm(diffs, axis=1)
-    med = np.median(dists)
-    valid = dists[dists < med * 3]  # 去掉跳点
-    return np.sum(valid)
+    total_length = np.sum(dists)
+
+    return total_length
+
 
 
 def save_to_txt(pcd2, pcd_list_h, output, file, scalar, status):
@@ -328,18 +331,3 @@ def save_to_txt(pcd2, pcd_list_h, output, file, scalar, status):
     os.makedirs(os.path.join(output,status,'txt'), exist_ok=True)
     np.savetxt(f"{output}\\{status}\\txt\\{file}",save_array,fmt="%.6f %.6f %.6f %.6f %.6f %.6f %.6f")
 
-def draw_juxin():
-    return
-    # points_np = np.asarray(pcd.points )
-    # min_bound = points_np.min(axis=0)  
-    # max_bound = points_np.max(axis=0)  
-    # step = 0.5
-    # xs = np.arange(min_bound[0], max_bound[0]+step, step)
-    # ys = np.arange(min_bound[1], max_bound[1]+step, step)
-    # zs = np.arange(min_bound[2], max_bound[2]+step, step)
-    # grid = np.array(np.meshgrid(xs, ys, zs)).T.reshape(-1, 3)
-    # cube_pcd = o3d.geometry.PointCloud()
-    # cube_pcd.points = o3d.utility.Vector3dVector(grid)
-    # # 给点云一个颜色，例如绿色
-    # cube_colors = np.tile([0, 1, 0], (grid.shape[0], 1))
-    # cube_pcd.colors = o3d.utility.Vector3dVector(cube_colors)
