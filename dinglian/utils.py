@@ -2,12 +2,14 @@ import os
 
 import open3d as o3d
 import numpy as np
-from scipy.spatial import Delaunay
+from scipy.interpolate import splprep, splev
+from scipy.spatial import Delaunay, cKDTree
 from collections import Counter
 import matplotlib.pyplot as plt
 
 import numpy as np
 import networkx as nx
+from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 
 
@@ -148,7 +150,7 @@ def create_coordinate_frame(center, x_axis, y_axis, z_axis, scale=1.0):
     # 创建坐标轴线段
     axes = []
     
-    # X轴 (红色) Y轴 (绿色) Z轴 (蓝色)
+    # X轴 (黑色) Y轴 (绿色) Z轴 (蓝色)
     x_line = o3d.geometry.LineSet()
     x_line.points = o3d.utility.Vector3dVector([center, center + x_axis])
     x_line.lines = o3d.utility.Vector2iVector([[0, 1]])
@@ -171,11 +173,12 @@ def create_coordinate_frame(center, x_axis, y_axis, z_axis, scale=1.0):
 
 
 # X轴 (黑色) Y轴 (绿色) Z轴 (蓝色)
-def get_jhy_w(jhy_points, cent_list, step_mm=1.0):
+def get_jhy_w(jhy_points, cent_list, step_mm=1.0, vis_list_h =[],axiox_list = []):
     """
     只在中心及上下 1mm 位置做 3 个切片
     """
     sample_axis = cent_list[0]          # 采样方向（单位向量）
+    vir_axis = cent_list[1]
     center = np.mean(jhy_points, axis=0)
     # 所有点在采样轴上的投影
     projections = np.dot(jhy_points, sample_axis)
@@ -197,9 +200,7 @@ def get_jhy_w(jhy_points, cent_list, step_mm=1.0):
         mask = np.abs(projections - pos) <= tolerance
         if np.any(mask):
             slice_points = jhy_points[mask]
-            # dist = get_len(slice_points, sample_axis)
-            dist = get_len(slice_points)
-            # dist = get_len(slice_points)
+            dist = get_len(slice_points,sample_axis,vis_list_h,axiox_list)
             dist_list.append(dist)
             pcd = get_poin_list(slice_points, [[0, 0, 1]])
             pcd_list.append(pcd)
@@ -208,17 +209,16 @@ def get_jhy_w(jhy_points, cent_list, step_mm=1.0):
     return pcd_list, dist_list
 
 
-def get_jhy_h(jhy_points, cent_list, step_mm=1.0):
+def get_jhy_h(jhy_points, cent_list, step_mm=1.0,vis_list_h = [],axiox_list = []):
     """
     只在中心及上下 1mm 位置做 3 个切片
     """
     sample_axis = cent_list[1]          # 采样方向（单位向量）
+    vir_axis = cent_list[0]
     center = np.mean(jhy_points, axis=0)
     # 所有点在采样轴上的投影
     projections = np.dot(jhy_points, sample_axis)
     center_proj = np.dot(center, sample_axis)
-    #
-    # index_list = [0, -1, 1, -2, 2, -3, 3]
     slice_positions = [
         center_proj,
         center_proj - step_mm,
@@ -236,7 +236,7 @@ def get_jhy_h(jhy_points, cent_list, step_mm=1.0):
         if np.any(mask):
             slice_points = jhy_points[mask]
             # dist = get_len(slice_points, sample_axis)
-            dist = get_len(slice_points)
+            dist = get_len(slice_points,sample_axis,vis_list_h,axiox_list)
             dist_list.append(dist)
             pcd = get_poin_list(slice_points, [[0, 0, 1]])
             pcd_list.append(pcd)
@@ -258,46 +258,71 @@ def get_jhy_h(jhy_points, cent_list, step_mm=1.0):
 
 
 
-# 算测地距离
-# def get_len(points, k=6, r=None):
-#     n = len(points)
+
+# def get_len(points,axis, vis_list_h):
+#     num_points = 1000
+#     pts = np.asarray(points)
+#     n = len(pts)
 #     if n < 2:
-#         return 0.0
-#     k = max(2, min(k, n))
-#     nbrs = NearestNeighbors(n_neighbors=k).fit(points)
-#     dists, idx = nbrs.kneighbors(points)
-#     G = nx.Graph()
-#     for i in range(n):
-#         for j, d in zip(idx[i][1:], dists[i][1:]):
-#             if r is None or d < r:
-#                 G.add_edge(i, j, weight=d)
-#     if G.number_of_edges() == 0:
-#         return 0.0
-#     G = G.subgraph(max(nx.connected_components(G), key=len)).copy()
-#     # 稳妥找直径（测地长度）
-#     s = next(iter(G.nodes))
-#     dist_s = nx.single_source_dijkstra_path_length(G, s)
-#     t = max(dist_s, key=dist_s.get)
-#     dist_t = nx.single_source_dijkstra_path_length(G, t)
-#     u = max(dist_t, key=dist_t.get)
-#     return dist_t[u]
+#         return np.array([0.0]), pts, 0.0
+#
+#     # -------------------------
+#     # 1️⃣ B样条拟合曲线
+#     # -------------------------
+#     tck, u = splprep(pts.T, s=0)  # s=0 保证拟合通过所有点
+#     u_dense = np.linspace(0, 1, num_points)
+#     dense_pts = np.array(splev(u_dense, tck)).T  # 拟合后的点
+#     dense_pts = np.asarray(dense_pts)
+#
+#     pcd = o3d.geometry.PointCloud()
+#     pcd.points = o3d.utility.Vector3dVector(points)
+#     vis_list_h.append(pcd)
+#     vis(vis_list_h, " 三轴坐标系")
+#     # vis_list_h.remove(pcd)
+#     # -------------------------
+#     # 2️⃣ 累计弧长（展平）
+#     # -------------------------
+#     diffs = np.diff(dense_pts, axis=0)
+#     seg_len = np.linalg.norm(diffs, axis=1)
+#     s = np.concatenate([[0], np.cumsum(seg_len)])
+#     total_length = s[-1]
+#     return total_length
+
+# X轴 (黑色) Y轴 (绿色) Z轴 (蓝色)
+
+# def get_len(points,axis, vis_list_h, axiox_list = []):
+    # R = np.stack([axiox_list[0], axiox_list[1], axiox_list[2]], axis=1)
+    # points = points @ R
+    # print('np.allclose(R.T @ R, np.eye(3))',np.allclose(R.T @ R, np.eye(3)))
+
+    points = np.asarray(points, dtype=float)
+    axis = np.asarray(axis, dtype=float)
+    axis = axis / np.linalg.norm(axis)
+    order = np.argsort(points @ axis)
+    ordered_pts = points[order]
+    ordered_pts = points
+    diffs = np.diff(ordered_pts, axis=0)
+    length = np.sum(np.linalg.norm(diffs, axis=1))
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    vis_list_h.append(pcd)
+    print("length", length)
+    seg_lens = np.linalg.norm(diffs, axis=1)
+    print("max segment:", seg_lens.max())
+    print("mean segment:", seg_lens.mean())
+    print("len segment:", len(diffs))
+    # print("diffs segment:", diffs)
+    vis(vis_list_h, " 三轴坐标系")
+    return length
 
 
-
-def get_len(points):
-    pts_centered = points - points.mean(axis=0)
-    _, _, vh = np.linalg.svd(pts_centered, full_matrices=False)
-    main_axis = vh[0]
-    proj = points @ main_axis
-    sorted_points = points[np.argsort(proj)]
-    # 可选：降采样，避免点太密
-    sorted_points = sorted_points[::30]
-    diffs = np.diff(sorted_points, axis=0)
-    dists = np.linalg.norm(diffs, axis=1)
-    total_length = np.sum(dists)
-
-    return total_length
-
+def get_len(points, axis, vis_list_h=None, axiox_list=[]):
+    diffs = np.diff(points, axis=0)
+    diff_list = np.linalg.norm(diffs, axis=1)
+    diff_list = diff_list[diff_list <= 0.4]
+    length = np.sum(diff_list)
+    print(length)
+    return length
 
 
 def save_to_txt(pcd2, pcd_list_h, output, file, scalar, status):
