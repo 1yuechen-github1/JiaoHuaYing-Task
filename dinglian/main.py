@@ -3,10 +3,7 @@ import os
 import numpy as np
 import open3d as o3d
 from path import Path
-
 from utils import *
-import re
-import matplotlib.pyplot as plt
 import copy
 import argparse
 
@@ -22,8 +19,6 @@ def get_args_parser():
 
 if __name__ == '__main__':
     args = get_args_parser().parse_args()
-
-    # args = parser.parse_args()
     if args.output:
         os.makedirs(args.output,exist_ok=True)
     for file in os.listdir(args.input):
@@ -35,9 +30,9 @@ if __name__ == '__main__':
         colors = dy_obj[:,3:6]
         colors = colors / 255.0
         # 网络
-        # scalar = dy_obj[:, -1]
+        scalar = dy_obj[:, -1]
         # 医生
-        scalar = dy_obj[:,6:7]  # (N,)
+        # scalar = dy_obj[:,6:7]  # (N,)
         scalar = scalar.astype(float)
 
         pcd = o3d.geometry.PointCloud()
