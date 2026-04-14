@@ -258,7 +258,7 @@ def analyze_top_level_directories(source_dir):
 
 if __name__ == "__main__":
     # 设置源目录路径
-    source_directory = r"C:\yuechen\code\jiaohuaying\1.code\0105\data\DATA\label\test"
+    source_directory = r"C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\5.缺牙区-有角化龈\2.缺牙区"
     
     print("每个顶级目录下的所有TXT文件将合并为一组NPY文件")
     print("Segment标签规则: scalar > 0 -> 1, scalar == 0 -> 0")
