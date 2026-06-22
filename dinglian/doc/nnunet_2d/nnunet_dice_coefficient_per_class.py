@@ -12,6 +12,8 @@ def load_images(folder: str):
     filenames = []
     files = sorted(glob(os.path.join(folder, "*")))
     for f in files:
+        if f.endswith('.db'):
+            continue
         filenames.append(os.path.basename(f))  # 获取文件名
         if f.endswith(".npy"):
             img = np.load(f)
@@ -30,7 +32,10 @@ def dice_coefficient_per_class(y_true, y_pred, num_classes=4, smooth=1e-6):
         y_true_c = (y_true == c).astype(np.uint8)
         y_pred_c = (y_pred == c).astype(np.uint8)
         intersection = np.sum(y_true_c * y_pred_c)
-        dice.append((2. * intersection + smooth) / (np.sum(y_true_c) + np.sum(y_pred_c) + smooth))
+        if(np.sum(y_true_c) + np.sum(y_pred_c) == 0):  # 如果该类在 GT 和预测中都没有出现，定义 Dice 为 1
+            dice.append(np.nan)  # 或者 append(1.0)，根据需求决定
+        else:   
+            dice.append((2. * intersection ) / (np.sum(y_true_c) + np.sum(y_pred_c) ))
     return dice
 
 def iou_score_per_class(y_true, y_pred, num_classes=4, smooth=1e-6):
@@ -40,8 +45,12 @@ def iou_score_per_class(y_true, y_pred, num_classes=4, smooth=1e-6):
         y_pred_c = (y_pred == c).astype(np.uint8)
         intersection = np.sum(y_true_c * y_pred_c)
         union = np.sum((y_true_c + y_pred_c) > 0)
-        iou.append((intersection + smooth) / (union + smooth))
+        if union == 0:  
+            iou.append(np.nan)  # 或者 append(1.0)，根据需求决定
+        else:    
+            iou.append((intersection + smooth) / (union + smooth))
     return iou
+
 
 def calculate_auc_per_class(y_true, pred_prob, num_classes=4):
     auc_per_class = []
@@ -57,6 +66,7 @@ def calculate_auc_per_class(y_true, pred_prob, num_classes=4):
             auc_per_class.append(np.nan)  # 如果某类只有一个标签，无法计算AUC
     return auc_per_class
 
+
 def convert_to_probability_map(gray_img, num_classes=4):
     """将灰度图转换为伪概率图"""
     prob_maps = np.zeros((num_classes, *gray_img.shape), dtype=np.float32)
@@ -65,8 +75,8 @@ def convert_to_probability_map(gray_img, num_classes=4):
     return prob_maps
 
 # 路径
-pred_path = r"C:\yuechen\code\jiaohuaying\2.data\实验结果\0408\nnunet\labelTs\ai"
-target_path = r"C:\yuechen\code\jiaohuaying\2.data\实验结果\0408\nnunet\labelTs\GT"
+pred_path = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d\labelTs\ai"
+target_path = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d\labelTs\GT"
 
 preds, pred_filenames = load_images(pred_path)
 targets, target_filenames = load_images(target_path)
@@ -89,7 +99,7 @@ for pred, target in zip(preds, targets):
         pred_label = np.argmax(pred, axis=0)  # 获取预测标签
         pred_prob = pred  # 如果是概率图，直接使用
     
-    print("pred_prob:", np.unique(pred_prob))  # 查看概率图的唯一值
+    # print("pred_prob:", np.unique(pred_prob))  # 查看概率图的唯一值
 
     # 计算 Dice, IoU, Accuracy
     dice_list.append(dice_coefficient_per_class(target, pred_label, num_classes))
@@ -123,6 +133,7 @@ data = {
     'AUC Class 3': auc_list[:, 3],
 }
 
+
 # 转换为 pandas DataFrame
 df = pd.DataFrame(data)
 
@@ -149,7 +160,24 @@ mean_df = pd.DataFrame(mean_data)
 df = pd.concat([df, mean_df], ignore_index=True)
 
 # 保存到 Excel
-excel_path = r'C:\yuechen\code\jiaohuaying\2.data\实验结果\0408\nnunet\labelTs\metrics_results.xlsx'
+excel_path = r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d\labelTs\metrics_results.xlsx'
 df.to_excel(excel_path, index=False)
 
 print(f"Metrics saved to {excel_path}")
+
+
+
+
+
+# from PIL import Image
+# import numpy as np
+
+# img_path = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d\labelTs\GT\0388-xly-Lower.png"
+
+# img = Image.open(img_path)
+# arr = np.array(img)
+
+# values, counts = np.unique(arr, return_counts=True)
+
+# for v, c in zip(values, counts):
+#     print(f"像素值 {v}: {c} 个")

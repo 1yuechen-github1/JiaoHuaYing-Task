@@ -381,8 +381,8 @@ def verify_dataset(dataset_dir):
 
 if __name__ == "__main__":
     # 使用示例
-    labelme_directory = r"C:\yuechen\code\jiaohuaying\2.data\0128\png\wash\json"  # 替换为你的LabelMe数据文件夹路径
-    output_directory = r"C:\yuechen\code\jiaohuaying\2.data\0128\png\wash_1"  # 替换为输出路径
+    labelme_directory = r"Z:\1.CY-SPACE\JiaoHuaYing\1.AllData-PNG\linshi\nnunet"  # 替换为你的LabelMe数据文件夹路径
+    output_directory = r"Z:\1.CY-SPACE\JiaoHuaYing\1.AllData-PNG\linshi\nnunet_output"  # 替换为输出路径
     dataset_name = "kousao"           # 你的数据集名称
     
     # 初始化类别映射字典

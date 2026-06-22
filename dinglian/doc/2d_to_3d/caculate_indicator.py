@@ -255,8 +255,8 @@ def batch_evaluate_pointclouds(pointcloud_dir, output_excel_path):
 # 使用方法
 if __name__ == "__main__":
     # 配置路径
-    pointcloud_directory = r"C:\Users\yuechen\Desktop\result\txt"  # 点云文件目录
-    output_excel_path = r"C:\Users\yuechen\Desktop\result\evaluation_results.xlsx"  # 输出Excel文件路径
+    pointcloud_directory = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\origin\merge"  # 点云文件目录
+    output_excel_path = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\origin\merge\evaluation_results.xlsx"  # 输出Excel文件路径
     
     # 批量评估
     batch_evaluate_pointclouds(pointcloud_directory, output_excel_path)

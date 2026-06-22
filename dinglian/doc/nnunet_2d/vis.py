@@ -25,6 +25,6 @@ def vis(path, path2, path3):
 
 
 # 调用可视化函数
-vis(r'C:\yuechen\code\jiaohuaying\2.data\0408\nnunet\imagesTs',
-    r'C:\yuechen\code\jiaohuaying\2.data\0408\nnunet\labelTs\gt',
-    r'C:\yuechen\code\jiaohuaying\2.data\0408\nnunet\vis\gt')
+vis(r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d_1\imagesTs',
+    r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d_1\labelTs\gt',
+    r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d_1\gt')

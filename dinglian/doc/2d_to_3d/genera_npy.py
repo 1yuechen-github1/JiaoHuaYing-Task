@@ -5,9 +5,10 @@ import os
 import numpy as np
 
 def genera_npy(path):
-    save_root = r'C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\6.npy'
+    save_root = r'Z:\1.CY-SPACE\JiaoHuaYing\only_upper_front_teeth\shangqianya_npy'
 
     for file in os.listdir(path):
+        print(file)
         all_coord = []
         all_color = []
         all_scalar = []
@@ -45,14 +46,14 @@ def genera_npy(path):
 
 
 
-# genera_npy(r'C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\5.缺牙区-有角化龈\2.缺牙区')
+genera_npy(r'Z:\1.CY-SPACE\JiaoHuaYing\only_upper_front_teeth\shangqianya')
 
 
-def read_npy(path):
-    for file1 in os.listdir(path):
-        for file in os.listdir(os.path.join(path, file1)):
-            if file.endswith('label.npy'):
-                data = np.load(os.path.join(path, file1,'label.npy'))
-                print(file1, np.unique(data))
+# def read_npy(path):
+#     for file1 in os.listdir(path):
+#         for file in os.listdir(os.path.join(path, file1)):
+#             if file.endswith('0172_pred.npy'):
+#                 data = np.load(os.path.join(path, file1,'0172_pred.npy'))
+#                 print(file1, np.shape(data))
 
-read_npy(r'C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\6.npy')
+# read_npy(r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\MaxillaryInformation')

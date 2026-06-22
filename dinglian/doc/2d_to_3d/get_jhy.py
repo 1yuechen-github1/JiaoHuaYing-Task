@@ -1,8 +1,4 @@
-import os
-import re
 
-import numpy as np
-import open3d as o3d
 import os
 import re
 import numpy as np
@@ -10,7 +6,7 @@ import open3d as o3d
 
 
 def get_jhy(ply_path, save_dir):
-    for root, dirs, files in os.walk(ply_path):
+    for root, _, files in os.walk(ply_path):
         for file in files:
             if file.endswith(".ply"):
                 if not re.search(r"upper|lower|Upper|Lower", file):
@@ -19,10 +15,6 @@ def get_jhy(ply_path, save_dir):
                     points = np.asarray(pcd.points)
                     np.savetxt(save_path, points, fmt="%.3f")
                     print(f"Saved {file} to {save_path}")
-
-
-
-
 
 
 def rotate_point_cloud(point_cloud, axis="y", angle_deg=0):
@@ -48,7 +40,6 @@ def ensure_xyzrgb(points, name):
     if points.shape[1] < 3:
         raise ValueError(f"{name} 至少需要3列")
 
-    # 没有RGB就补白色
     if points.shape[1] < 6:
         rgb = np.ones((points.shape[0], 3)) * 255
         points = np.hstack([points[:, :3], rgb])
@@ -59,9 +50,83 @@ def ensure_xyzrgb(points, name):
 
 
 def match_files(path, prefix):
+    matches = []
     for file in os.listdir(path):
         if file.startswith(prefix):
-            return file
+            matches.append(file)
+    return sorted(matches)
+
+
+def load_points_any(path):
+    ext = os.path.splitext(path)[1].lower()
+
+    if ext == ".txt":
+        arr = np.loadtxt(path)
+        arr = np.atleast_2d(arr)
+        return arr
+
+    elif ext == ".ply":
+        pcd = o3d.io.read_point_cloud(path)
+        if pcd.is_empty():
+            raise ValueError(f"PLY为空或无法读取: {path}")
+
+        points = np.asarray(pcd.points)
+        colors = np.asarray(pcd.colors)
+
+        if colors is None or len(colors) != len(points):
+            colors = np.ones((len(points), 3), dtype=float)
+
+        if len(colors) > 0 and colors.max() <= 1.0:
+            colors = colors * 255.0
+
+        return np.hstack([points, colors])
+
+    else:
+        raise ValueError(f"不支持的文件格式: {path}")
+
+
+def load_xyzrgb(path):
+    data = load_points_any(path)
+    return ensure_xyzrgb(data, os.path.basename(path))
+
+
+def is_valid_jhy_txt(path, min_positive_points=20000):
+    data = np.loadtxt(path)
+    data = np.atleast_2d(data)
+
+    if data.shape[1] < 7:
+        return False, 0
+
+    scalar = data[:, -1].astype(int)
+    positive_count = int(np.sum(scalar > 0))
+
+    return positive_count > min_positive_points, positive_count
+
+
+def select_jhy_file(path_jiaohua, prefix, min_positive_points=20000):
+    candidates = match_files(path_jiaohua, prefix)
+
+    if not candidates:
+        return None
+
+    for file in candidates:
+        full_path = os.path.join(path_jiaohua, file)
+        ext = os.path.splitext(file)[1].lower()
+
+        try:
+            if ext == ".txt":
+                ok, positive_count = is_valid_jhy_txt(full_path, min_positive_points)
+                if ok:
+                    return file
+                print(f"跳过 {file}: scalar>0 点数不足，当前为 {positive_count}")
+
+            elif ext == ".ply":
+                return file
+
+        except Exception as e:
+            print(f"跳过 {file}: {e}")
+            continue
+
     return None
 
 
@@ -80,26 +145,25 @@ def find_close_points(source_points, target_points, radius=0.01):
 def retoke_pcd_match(path_jiaohua, path_queya, out_path):
     os.makedirs(out_path, exist_ok=True)
 
-    for file in os.listdir(path_queya):   # ✅ 以缺牙区为主
+    for file in os.listdir(path_queya):
         print(f"处理缺牙区文件: {file}")
 
-        queyaqu = np.loadtxt(os.path.join(path_queya, file))
-        queyaqu = ensure_xyzrgb(queyaqu, "缺牙区")
+        queyaqu = load_xyzrgb(os.path.join(path_queya, file))
 
         prefix = file[0:4]
-        jiaohua_file = match_files(path_jiaohua, prefix)
+        jiaohua_file = select_jhy_file(path_jiaohua, prefix, min_positive_points=20000)
 
         if jiaohua_file is None:
-            print(f"未找到角化龈: {prefix}")
+            print(f"未找到可用角化龈文件: {prefix}")
             continue
 
         print(f"匹配角化龈: {jiaohua_file}")
 
-        jiaohua = np.loadtxt(os.path.join(path_jiaohua, jiaohua_file))
+        jiaohua_path = os.path.join(path_jiaohua, jiaohua_file)
+        jiaohua = load_xyzrgb(jiaohua_path)
 
-        # === 旋转角化龈 ===
         is_maxilla = jiaohua_file[-6:-4]
-        if int(is_maxilla) < 30:
+        if is_maxilla.isdigit() and int(is_maxilla) < 30:
             jiaohua = rotate_point_cloud(jiaohua, "y", 180)
             jiaohua = rotate_point_cloud(jiaohua, "x", -35)
             jiaohua = rotate_point_cloud(jiaohua, "z", 180)
@@ -108,18 +172,15 @@ def retoke_pcd_match(path_jiaohua, path_queya, out_path):
 
         jiaohua = ensure_xyzrgb(jiaohua, "角化龈")
 
-        # === 找：缺牙区中哪些点属于角化龈 ===
         mask = find_close_points(queyaqu, jiaohua, radius=1)
 
         label = int(file.split(".")[0][-1])
-        print("label:",label)
+        print("label:", label)
 
         labels = np.zeros(queyaqu.shape[0], dtype=int)
         labels[mask] = label
 
-        # ✅ 输出 xyz rgb scalar
         output = np.column_stack((queyaqu[:, :6], labels))
-
         save_path = os.path.join(out_path, os.path.splitext(file)[0] + ".txt")
 
         np.savetxt(
@@ -131,12 +192,15 @@ def retoke_pcd_match(path_jiaohua, path_queya, out_path):
         print(f"已保存: {save_path}")
 
 
-# # ========= 路径 =========
-# path_jiaohua = r"C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\5.缺牙区-有角化龈\6.linshi\jiaohuaying"
-# path_queya = r"C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\5.缺牙区-有角化龈\6.linshi\queyaqu"
-# out_path = r"C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\5.缺牙区-有角化龈\6.linshi"
 
-# retoke_pcd_match(path_jiaohua, path_queya, out_path)
+
+
+
+path_jiaohua = r"Z:\1.CY-SPACE\JiaoHuaYing\fei\newdata\linshi\jhy"
+path_queya = r"Z:\1.CY-SPACE\JiaoHuaYing\fei\newdata\linshi\quyaqu"
+out_path = r"Z:\1.CY-SPACE\JiaoHuaYing\fei\newdata\linshi\output"
+
+retoke_pcd_match(path_jiaohua, path_queya, out_path)
 
 
 def get_pcd_label(path):
@@ -149,4 +213,4 @@ def get_pcd_label(path):
             print(file, np.unique(labels), labels.shape, labels1.shape)
             # print()
 
-get_pcd_label(r"C:\yuechen\code\jiaohuaying\2.data\3.0326_data\wash\5.缺牙区-有角化龈\2.缺牙区")
+get_pcd_label(r"Z:\1.CY-SPACE\JiaoHuaYing\fei\newdata\linshi\output")

@@ -1,4 +1,5 @@
 import argparse
+import csv
 import copy
 import os
 
@@ -26,20 +27,29 @@ if __name__ == "__main__":
         dy_file = os.path.join(args.keratinized_gingiva, file)
         if not os.path.isfile(dy_file):
             continue
-
-        base_name = file[0:-15]
+        base_name = file[0:-8]
         is_upper = base_name.split("_")[-1]
-        oral_scan_file = os.path.join(args.rotake_oral_scan, base_name + ".txt")
-        if not os.path.exists(oral_scan_file):
-            print("skip, oral scan missing:", oral_scan_file)
+        oral_scan_file = None
+        for ext in (".txt", ".ply"):
+            candidate_file = os.path.join(args.rotake_oral_scan, base_name + ext)
+            if os.path.exists(candidate_file):
+                oral_scan_file = candidate_file
+                break
+        if oral_scan_file is None:
+            print("skip, oral scan missing:", os.path.join(args.rotake_oral_scan, base_name + ".txt/.ply"))
             continue
 
         # 读取角化龈点云
         dy_obj = np.loadtxt(dy_file)
         points = dy_obj[:, :3]
         colors = dy_obj[:, 3:6] / 255.0
-        scalar = dy_obj[:, 6:7].astype(float)
-
+        prefix = args.output.split("\\")[-1]
+        if prefix == 'gt':
+            scalar = dy_obj[:, 6:7].astype(float)  #这是第7列
+        else:
+            prefix = 'ai'
+            scalar = dy_obj[:, 7:8].astype(float)  #这是第8列
+         
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
         pcd.colors = o3d.utility.Vector3dVector(colors)
@@ -49,13 +59,17 @@ if __name__ == "__main__":
         pcd, _ = filt_rpoin_hsv(pcd)
         pcd, labels = use_dbscan(pcd)
 
-        # 读取口扫并计算中心点（默认口扫中心在点云内部）
-        oral_scan_obj = np.loadtxt(oral_scan_file)
-        pcd_oral_scan_points = oral_scan_obj[:, :3]
+        # 读取口扫点云并计算中心点
+        if oral_scan_file.lower().endswith(".ply"):
+            oral_scan_obj = o3d.io.read_point_cloud(oral_scan_file)
+            pcd_oral_scan_points = np.asarray(oral_scan_obj.points)
+        else:
+            oral_scan_obj = np.loadtxt(oral_scan_file)
+            pcd_oral_scan_points = oral_scan_obj[:, :3]
         oral_scan_center = np.mean(pcd_oral_scan_points, axis=0).reshape(1, 3)
         oral_scan_center_point = oral_scan_center[0]
 
-        # 计算两个聚类中心
+        # 计算聚类中心
         cent_list = []
         for label in np.unique(labels):
             mask = label == labels
@@ -68,7 +82,7 @@ if __name__ == "__main__":
             print("skip, cluster centers < 2:", file)
             continue
 
-        # 按到口扫中心距离排序：0=近中，1=远中
+        # 按到口扫中心的距离排序：近中、远中
         dists = np.linalg.norm(centers_array - oral_scan_center_point, axis=1)
         sort_idx = np.argsort(dists)
         centers_array = centers_array[sort_idx]
@@ -77,7 +91,7 @@ if __name__ == "__main__":
         axiox1 = centers_array[1] - centers_array[0]
         axiox1 = axiox1 / np.linalg.norm(axiox1)
 
-        # 构造两个候选点，并判定哪个在点云外部
+        # 构造候选点，并判断哪个在点云外部
         center_x_array = np.column_stack(
             (-centers_array[:, 1], centers_array[:, 0], np.zeros(centers_array.shape[0]))
         )
@@ -87,7 +101,7 @@ if __name__ == "__main__":
         dist1 = np.linalg.norm(candidate1 - oral_scan_center_point)
         outer_point = candidate0 if dist0 >= dist1 else candidate1
 
-        # 舌/腭方向：oral_scan_center - 点云外部点
+        # 舌腭方向：oral_scan_center - 点云外部点
         toward_oral = oral_scan_center_point - outer_point
         toward_oral = toward_oral / np.linalg.norm(toward_oral)
 
@@ -109,18 +123,21 @@ if __name__ == "__main__":
         # 仅取角化龈区域点
         red_indices = np.where(scalar > 0)[0]
         points_array = np.asarray(pcd1.points)
+        colors_array = np.asarray(pcd1.colors)
         jhy_points = points_array[red_indices]
+        jhy_colors = colors_array[red_indices]
         if jhy_points.shape[0] == 0:
             print("skip, no scalar>0 points:", file)
             continue
 
-        # 测量（中央按 z 最大切片；切片范围自动扩展）
+        # 测量：中央按 z 最大切片，切片范围自动扩展
         cent_list_for_measure = [axiox1, axiox2, axiox3, pcd1, centers_pcd]
         vis_list_h = [x_line, y_line, z_line]
         axiox_list = [axiox1, axiox2, axiox3]
 
         pcd_list_h, dist_h, offsets_h = get_jhy_h(
             jhy_points,
+            jhy_colors,
             cent_list_for_measure,
             0.5,
             vis_list_h,
@@ -131,6 +148,7 @@ if __name__ == "__main__":
         )
         pcd_list_w, dist_w, offsets_w = get_jhy_w(
             jhy_points,
+            jhy_colors,
             cent_list_for_measure,
             0.5,
             vis_list_h,
@@ -140,14 +158,25 @@ if __name__ == "__main__":
         )
 
         output = args.output
-        save_to_txt(pcd2, pcd_list_h, output, file, scalar, "hig")
-        save_to_txt(pcd2, pcd_list_w, output, file, scalar, "wid")
+        save_to_txt(pcd2, pcd_list_h, output, prefix+'_'+file, scalar, "hig")
+        save_to_txt(pcd2, pcd_list_w, output, prefix+'_'+file, scalar, "wid")
 
-        # CSV：w=近中/远中；h=下颌舌侧-颊侧，上颌腭侧-颊侧
-        with open(output + "\\jhy_h.csv", "a", encoding="utf-8-sig") as f:
-            for off, dist in zip(offsets_h, dist_h):
-                f.write(f"{file},{label_h(off, is_upper)},{dist}\n")
 
-        with open(output + "\\jhy_w.csv", "a", encoding="utf-8-sig") as f:
-            for off, dist in zip(offsets_w, dist_w):
-                f.write(f"{file},{label_w(off)},{dist}\n")
+        # CSV：每个文件一行，固定输出 0, -1, 1, -2, 2, -3, 3 七个切片位置
+        append_measure_csv(
+            os.path.join(output, f"{prefix}_jhy_h.csv"),
+            file,
+            offsets_h,
+            dist_h,
+            label_h,
+            is_upper
+        )
+        append_measure_csv(
+            os.path.join(output, f"{prefix}_jhy_w.csv"),
+            file,
+            offsets_w,
+            dist_w,
+            label_w,
+            None
+        )
+

@@ -5,15 +5,15 @@ from scipy.interpolate import splprep, splev
 from scipy.spatial import Delaunay, cKDTree
 from collections import Counter
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
 import numpy as np
 import networkx as nx
-from sklearn.cluster import DBSCAN
-from sklearn.decomposition import PCA
-from sklearn.neighbors import NearestNeighbors
+import csv
 
-# from code.dinglian.doc.surface_rebuild import mesh
-from scipy.integrate import quad
+
+DEBUG_VIS_GET_LEN_CLUSTERS = True
+
+TARGET_OFFSETS = [0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5]
+
 
 def vis(pcd_list, file):
     o3d.visualization.draw_geometries(
@@ -192,6 +192,7 @@ def _build_slice_offsets(center_proj, projections, step_mm):
 
 def get_jhy_w(
     jhy_points,
+    jhy_colors,
     cent_list,
     step_mm=1.0,
     vis_list_h=[],
@@ -230,11 +231,11 @@ def get_jhy_w(
             dist_list.append(0)
 
         pcd = o3d.geometry.PointCloud()
-        colors_blue = np.tile([0.7, 0.7, 0.7], (jhy_points.shape[0], 1))
+        colors_blue = jhy_colors
         pcd.points = o3d.utility.Vector3dVector(jhy_points)
         pcd.colors = o3d.utility.Vector3dVector(colors_blue)
-        geoms = [pcd]
-
+        # geoms = [pcd]
+        geoms = []
         if len(slice_points_all) > 0:
             pcd1_all = o3d.geometry.PointCloud()
             all_slice_points = np.vstack(slice_points_all)
@@ -250,8 +251,7 @@ def get_jhy_w(
             pcd_cur.colors = o3d.utility.Vector3dVector(colors_green)
             geoms.append(pcd_cur)
 
-        print(f"[jhy_w] pos={pos:.4f}, hit={hit_count}, accumulated={len(slice_points_all)}")
-        vis(geoms, "measure_jhy_w")
+        # vis(geoms, "measure_jhy_w")
 
     # if len(slice_points_all) > 0:
 
@@ -263,6 +263,7 @@ def get_jhy_w(
 
 def get_jhy_h(
     jhy_points,
+    jhy_colors,
     cent_list,
     step_mm=1.0,
     vis_list_h=[],
@@ -303,11 +304,12 @@ def get_jhy_h(
 
         
         pcd = o3d.geometry.PointCloud()
-        colors_blue = np.tile([0.7, 0.7, 0.7], (jhy_points.shape[0], 1))
+        colors_blue = jhy_colors
         pcd.points = o3d.utility.Vector3dVector(jhy_points)
         pcd.colors = o3d.utility.Vector3dVector(colors_blue)
 
-        geoms = [pcd]
+        # geoms = [pcd]
+        geoms = []
         if len(slice_points_all) > 0:
             pcd1_all = o3d.geometry.PointCloud()
             all_slice_points = np.vstack(slice_points_all)
@@ -323,10 +325,8 @@ def get_jhy_h(
             pcd_cur.colors = o3d.utility.Vector3dVector(colors_green)
             geoms.append(pcd_cur)
 
-        print(f"[jhy_h] pos={pos:.4f}, hit={hit_count}, accumulated={len(slice_points_all)}")
-        vis(geoms, "measure_jhy_h")
+        # vis(geoms, "measure_jhy_h")
 
-    # if len(slice_points_all) > 0:
 
 
     if return_offsets:
@@ -336,15 +336,31 @@ def get_jhy_h(
 
 
 
+def _vis_len_clusters(points, labels, win_name="get_len_clusters"):
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    uniq = np.unique(labels)
+    denom = max(len(uniq) - 1, 1)
+    lut = {lab: idx for idx, lab in enumerate(uniq)}
+    color_idx = np.array([lut[lab] for lab in labels], dtype=float)
+    colors = plt.get_cmap("tab20")(color_idx / denom)[:, :3]
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+    vis([pcd], win_name)
+
+
+
 def get_len(points,axis):
     # print('axis',axis)
     radius = 200
     points = np.asarray(points)
-    # pcd = o3d.geometry.PointCloud()
-    # pcd.points = o3d.utility.Vector3dVector(points)
-    # vis([pcd],'file')
+    if points.shape[0] < 2:
+        return 0.0
+
     n = len(points)
     G = nx.Graph()
+    # Ensure nodes exist even when no edges are added.
+    G.add_nodes_from(range(n))
+
     kdt = cKDTree(points)
     for i, p in enumerate(points):
         idxs = kdt.query_ball_point(p, r=radius)
@@ -352,29 +368,14 @@ def get_len(points,axis):
             if i != j:
                 dist = np.linalg.norm(points[i] - points[j])
                 G.add_edge(i, j, weight=dist)
+
     if not nx.has_path(G, 0, n - 1):
-        raise ValueError("图不连通，请增大 radius 以完成拟合")
+        return 0.0
+
     length = nx.shortest_path_length(G, 0, n - 1, weight='weight')
     # print("length", length)
-    return length
+    return float(length)
 
-# def  get_len(points,axis):
-    # print('axis',axis)
-    # print('points',points)
-    points = points[:, :2]
-    x = points[:, 0]
-    y = points[:, 1]
-    tck, u = splprep([x, y], s=2.0)
-    # 定义曲线函数
-    def curve_func(t):
-        return np.array(splev(t, tck))
-    # 曲线长度积分
-    def integrand(t):
-        dx, dy = splev(t, tck, der=1)
-        return np.sqrt(dx**2 + dy**2)
-    length, _ = quad(integrand, 0, 1)
-    print("曲线长度:", length)
-    return length
 
 def save_to_txt(pcd2, pcd_list_h, output, file, scalar, status):
     points_array = np.asarray(pcd2.points)
@@ -408,141 +409,14 @@ def save_to_txt(pcd2, pcd_list_h, output, file, scalar, status):
     np.savetxt(f"{output}\\{status}\\txt\\{file}",save_array,fmt="%.6f %.6f %.6f %.6f %.6f %.6f %.6f")
 
 
-# def interpolate_points_linear(points, num_samples=100):
-    # """
-    # 线性插值增加点密度。
-    # """
-    # points = np.asarray(points)
-    # diffs = np.diff(points, axis=0)
-    # seg_lens = np.linalg.norm(diffs, axis=1)
-
-    # s = np.concatenate([[0], np.cumsum(seg_lens)])
-    # s_new = np.linspace(0, s[-1], num_samples)
-
-    # new_pts = []
-    # j = 0
-    # for si in s_new:
-    #     while j < len(seg_lens) - 1 and si > s[j+1]:
-    #         j += 1
-    #     t = (si - s[j]) / seg_lens[j] if seg_lens[j] > 0 else 0
-    #     new_pts.append(points[j] * (1 - t) + points[j+1] * t)
-    # return np.array(new_pts)
-
-
-# def create_curve_mesh_from_points(points, radius=0.1, segments=8):
-    # """
-    # 从点序列创建管状曲线网格。
-    # """
-    # n_points = len(points)
-
-    # # 计算切线方向
-    # tangents = []
-    # for i in range(n_points):
-    #     if i == 0:
-    #         tangent = points[1] - points[0]
-    #     elif i == n_points - 1:
-    #         tangent = points[-1] - points[-2]
-    #     else:
-    #         tangent = (points[i + 1] - points[i - 1]) / 2.0
-    #     tangent = tangent / np.linalg.norm(tangent)
-    #     tangents.append(tangent)
-    # tangents = np.array(tangents)
-    # up_vec = np.array([0, 0, 1])
-    # if abs(np.dot(tangents[0], up_vec)) > 0.99:
-    #     up_vec = np.array([0, 1, 0])
-    # normals = []
-    # for i in range(n_points):
-    #     if i == 0:
-    #         normal = np.cross(tangents[0], up_vec)
-    #     else:
-    #         normal = np.cross(tangents[i], tangents[i - 1])
-    #         if np.linalg.norm(normal) < 1e-6:
-    #             normal = normals[-1]
-
-    #     normal = normal / np.linalg.norm(normal)
-    #     binormal = np.cross(tangents[i], normal)
-    #     normals.append(normal)
-    # normals = np.array(normals)
-    # # 生成管状网格顶点
-    # vertices = []
-    # triangles = []
-    # for i in range(n_points):
-    #     for j in range(segments):
-    #         angle = 2 * np.pi * j / segments
-    #         offset = radius * (np.cos(angle) * normals[i] +
-    #                            np.sin(angle) * np.cross(tangents[i], normals[i]))
-    #         vertex = points[i] + offset
-    #         vertices.append(vertex)
-    # # 生成三角形面片
-    # for i in range(n_points - 1):
-    #     for j in range(segments):
-    #         j_next = (j + 1) % segments
-
-    #         # 当前圆环上的顶点索引
-    #         v00 = i * segments + j
-    #         v01 = i * segments + j_next
-    #         v10 = (i + 1) * segments + j
-    #         v11 = (i + 1) * segments + j_next
-    #         # 两个三角形组成一个四边面
-    #         triangles.append([v00, v10, v01])
-    #         triangles.append([v01, v10, v11])
-    # mesh = o3d.geometry.TriangleMesh()
-    # mesh.vertices = o3d.utility.Vector3dVector(np.array(vertices))
-    # mesh.triangles = o3d.utility.Vector3iVector(np.array(triangles))
-    # return mesh
-
-
-# def calculate_tube_curve_length(mesh, num_sections=100):
-    """
-    # 计算管状曲线网格的长度。
-    # 通过截面中心点连线长度近似曲线长度。
-    # """
-    # vertices = np.asarray(mesh.vertices)
-    # triangles = np.asarray(mesh.triangles)
-
-    # # 获取所有顶点
-    # all_vertices = vertices
-
-    # pca = PCA(n_components=3)
-    # pca.fit(all_vertices)
-
-    # # 主要方向（曲线走向）
-    # main_direction = pca.components_[0]
-
-    # # 将顶点投影到主要方向
-    # projections = np.dot(all_vertices, main_direction)
-
-    # # 沿主要方向切片
-    # min_proj = np.min(projections)
-    # max_proj = np.max(projections)
-
-    # # 创建切片位置
-    # slice_positions = np.linspace(min_proj, max_proj, num_sections)
-
-    # # 计算每个切片的中心点
-    # centers = []
-    # for pos in slice_positions:
-    #     # 找到切片附近点
-    #     mask = np.abs(projections - pos) < (max_proj - min_proj) / (num_sections * 2)
-    #     if np.sum(mask) > 0:
-    #         slice_points = all_vertices[mask]
-    #         center = np.mean(slice_points, axis=0)
-    #         centers.append(center)
-
-    # # 累加中心点连线长度
-    # curve_length = 0.0
-    # for i in range(len(centers) - 1):
-    #     curve_length += np.linalg.norm(centers[i] - centers[i + 1])
-
-    # return curve_length
 
 
 def label_w(offset):
     if offset == 0:
         return "中央(z最大)"
     if offset < 0:
-        return f"近中{abs(offset)}mm"
-    return f"远中{offset}mm"
+        return f"近中{abs(offset/2)}mm"
+    return f"远中{offset/2}mm"
 
 
 def label_h(offset, is_upper):
@@ -552,9 +426,29 @@ def label_h(offset, is_upper):
     is_upper_case = str(is_upper).lower()
     # 上颌统一为偏颊侧；下颌按舌侧/颊侧区分
     if is_upper_case in {"upper", "up", "u", "maxilla"}:
-        return f"偏颊侧{abs(offset)}mm"
+        if offset > 0:
+            return f"偏腭侧{abs(offset/2)}mm"
+        else:
+            return f"偏颊侧{abs(offset/2)}mm"
 
     if offset > 0:
-        return f"偏舌侧{offset}mm"
-    return f"偏颊侧{abs(offset)}mm"
+        return f"偏舌侧{offset/2}mm"
+    return f"偏颊侧{abs(offset/2)}mm"
 
+
+def append_measure_csv(csv_path, file, offsets, dists, label_h,is_upper):
+    dist_by_offset = dict(zip(offsets, dists))
+    file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
+
+    if is_upper != None:
+        with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["file"] + [f"{label_h(off, is_upper)}" for off in TARGET_OFFSETS])
+            writer.writerow([file] + [dist_by_offset.get(off, "") for off in TARGET_OFFSETS])
+    else:
+        with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["file"] + [f"{label_h(off)}" for off in TARGET_OFFSETS])
+            writer.writerow([file] + [dist_by_offset.get(off, "") for off in TARGET_OFFSETS])
