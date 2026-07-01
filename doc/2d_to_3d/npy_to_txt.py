@@ -40,14 +40,14 @@ def read_txt(data_dic):
                     f'{index} pred 不够用：需要 {end}，只有 {len(pred_all)}'
                 )
 
-            pred = pred_all[start:end]
-            # pred = pred_all[start:end].ravel()
+            # pred = pred_all[start:end]
+            pred = pred_all[start:end].ravel()
 
             start = end
 
-            output_data = np.hstack([points, pred])
-            # output_data = points.copy()
-            # output_data[:, -1] = pred
+            # output_data = np.hstack([points, pred])
+            output_data = points.copy()
+            output_data[:, -1] = pred
 
             save_path = os.path.join(path2, f'{file}')
             np.savetxt(save_path, output_data, fmt='%.6f')
@@ -61,7 +61,7 @@ def read_txt(data_dic):
             print(f"⚠️ {index} pred 没用完: 用了 {start} / 总共 {len(pred_all)}")
 
 
-data = npy_to_txt(r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\result')
+data = npy_to_txt(r'C:\Users\yuechen\Desktop\result')
 read_txt(data)
 
 

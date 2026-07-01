@@ -14,7 +14,7 @@ def move_data(path):
         shutil.move(os.path.join(path, file),os.path.join(path,str(num), file))
 
 
-move_data(r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\MaxillaryInformation\MaxillaryInformation')
+move_data(r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\pcd')
 
 
 # def move_data(path):
