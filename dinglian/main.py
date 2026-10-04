@@ -24,6 +24,7 @@ if __name__ == "__main__":
         os.makedirs(args.output, exist_ok=True)
 
     for file in os.listdir(args.keratinized_gingiva):
+        print('file:',file)
         dy_file = os.path.join(args.keratinized_gingiva, file)
         if not os.path.isfile(dy_file):
             continue
@@ -56,7 +57,7 @@ if __name__ == "__main__":
         pcd1 = pcd
         pcd2 = copy.deepcopy(pcd)
 
-        pcd, _ = filt_rpoin_hsv(pcd)
+        pcd, _ = filt_rpoin_hsv(pcd) #使用 HSV 颜色空间过滤，保留非红色点。 
         pcd, labels = use_dbscan(pcd)
 
         # 读取口扫点云并计算中心点
@@ -146,6 +147,8 @@ if __name__ == "__main__":
             is_upper,
             return_offsets=True,
         )
+        print('dist_h:',dist_h)
+        print('offsets_h:',offsets_h)
         pcd_list_w, dist_w, offsets_w = get_jhy_w(
             jhy_points,
             jhy_colors,
@@ -158,19 +161,43 @@ if __name__ == "__main__":
         )
 
         output = args.output
-        save_to_txt(pcd2, pcd_list_h, output, prefix+'_'+file, scalar, "hig")
-        save_to_txt(pcd2, pcd_list_w, output, prefix+'_'+file, scalar, "wid")
+        is_upper_case = str(is_upper).lower()
+        height_csv_offsets = (
+            [off for off in TARGET_OFFSETS if off >= 0]
+            if is_upper_case in {"upper", "up", "u", "maxilla"}
+            else TARGET_OFFSETS
+        )
+        save_to_txt(
+            pcd2, pcd_list_h, output, prefix+'_'+file, scalar, "hig",
+            offsets_h, height_csv_offsets,
+        )
+        save_to_txt(
+            pcd2, pcd_list_w, output, prefix+'_'+file, scalar, "wid",
+            offsets_w, TARGET_OFFSETS,
+        )
 
 
         # CSV：每个文件一行，固定输出 0, -1, 1, -2, 2, -3, 3 七个切片位置
-        append_measure_csv(
-            os.path.join(output, f"{prefix}_jhy_h.csv"),
-            file,
-            offsets_h,
-            dist_h,
-            label_h,
-            is_upper
-        )
+        print("file:",file,offsets_h,dist_h,label_h,is_upper)
+        # if is_upper == 'upper':
+        if 'upp' in file or 'Upp' in file:
+            append_measure_csv(
+                os.path.join(output, f"{prefix}_jhy_upper_h.csv"),
+                file,
+                offsets_h,
+                dist_h,
+                label_h,
+                is_upper
+            )
+        else:
+            append_measure_csv(
+                os.path.join(output, f"{prefix}_jhy_lower_h.csv"),
+                file,
+                offsets_h,
+                dist_h,
+                label_h,
+                is_upper
+            )            
         append_measure_csv(
             os.path.join(output, f"{prefix}_jhy_w.csv"),
             file,

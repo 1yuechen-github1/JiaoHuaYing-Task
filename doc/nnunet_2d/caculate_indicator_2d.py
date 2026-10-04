@@ -4,7 +4,7 @@ import pandas as pd
 from glob import glob
 from sklearn.metrics import accuracy_score, roc_auc_score
 import imageio.v2 as imageio  # 更新为 v2 来避免 DeprecationWarning
-import nibabel as nib  # 如果是 NIfTI 文件
+# import nibabel as nib  # 如果是 NIfTI 文件
 
 def load_images(folder: str):
     """读取灰度图或 NIfTI 图像"""
@@ -75,8 +75,8 @@ def convert_to_probability_map(gray_img, num_classes=4):
     return prob_maps
 
 # 路径
-pred_path = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d\labelTs\ai"
-target_path = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d\labelTs\GT"
+pred_path = r"Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\核对数据后\nnUnet2d\labelsTs\ai"
+target_path = r"Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\核对数据后\nnUnet2d\labelsTs\gt"
 
 preds, pred_filenames = load_images(pred_path)
 targets, target_filenames = load_images(target_path)
@@ -160,7 +160,7 @@ mean_df = pd.DataFrame(mean_data)
 df = pd.concat([df, mean_df], ignore_index=True)
 
 # 保存到 Excel
-excel_path = r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\nnunet-2d\labelTs\metrics_results.xlsx'
+excel_path = r'Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\核对数据后\nnUnet2d\labelsTs\metrics_results.xlsx'
 df.to_excel(excel_path, index=False)
 
 print(f"Metrics saved to {excel_path}")

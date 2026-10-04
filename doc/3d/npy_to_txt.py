@@ -14,8 +14,8 @@ def npy_to_txt(path):
 
 def read_txt(data_dic):
     
-    path = r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\pcd'
-    path2 = r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\merge'
+    path = r'Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\test\linshi\queyaqu'
+    path2 = r'Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\test\linshi'
     os.makedirs(path2, exist_ok=True)
 
     for index, pred_all in data_dic.items():
@@ -40,14 +40,14 @@ def read_txt(data_dic):
                     f'{index} pred 不够用：需要 {end}，只有 {len(pred_all)}'
                 )
 
-            # pred = pred_all[start:end]
-            pred = pred_all[start:end].ravel()
+            pred = pred_all[start:end]
+            # pred = pred_all[start:end].ravel()
 
             start = end
 
-            # output_data = np.hstack([points, pred])
-            output_data = points.copy()
-            output_data[:, -1] = pred
+            output_data = np.hstack([points, pred])
+            # output_data = points.copy()
+            # output_data[:, -1] = pred
 
             save_path = os.path.join(path2, f'{file}')
             np.savetxt(save_path, output_data, fmt='%.6f')
@@ -61,14 +61,14 @@ def read_txt(data_dic):
             print(f"⚠️ {index} pred 没用完: 用了 {start} / 总共 {len(pred_all)}")
 
 
-data = npy_to_txt(r'C:\Users\yuechen\Desktop\result')
+data = npy_to_txt(r'Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\test\linshi\npy')
 read_txt(data)
 
 
 # import os
 # import shutil
 
-# path = r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\MaxillaryInformation'
+# path = r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\MaxillaryInformation\MaxillaryInformation'
 # path2 = r'Y:\1.CY-SPACE\JiaoHuaYing\1.AllData-PointCloud-QueYaQu'
 # path3 = r'Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\queyaqu'
 

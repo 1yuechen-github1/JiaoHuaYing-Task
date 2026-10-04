@@ -162,9 +162,9 @@ def get_jaw_type_from_path(file_path):
     return None
 
 
-input_folder = r'Y:\1.CY-SPACE\JiaoHuaYing\linshi\jhy'
-output_folder = r'Y:\1.CY-SPACE\JiaoHuaYing\linshi\out'
-rotated_output_folder = r'Y:\1.CY-SPACE\JiaoHuaYing\linshi\out'
+input_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\Add_2D_screenshot\pcd'
+output_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\Add_2D_screenshot\output'
+rotated_output_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\Add_2D_screenshot\output'
 
 os.makedirs(output_folder, exist_ok=True)
 os.makedirs(rotated_output_folder, exist_ok=True)
@@ -175,21 +175,19 @@ for point_cloud, filepath in zip(point_clouds, filepaths):
     filename = os.path.basename(filepath)
     file_name_without_ext = os.path.splitext(filename)[0]
 
-    # jaw_type = get_jaw_type_from_path(filepath)
-    # if jaw_type is None:
-    #     logging.warning(f"路径中既不包含 upper 也不包含 lower，跳过: {filepath}")
-    #     continue
+    jaw_type = get_jaw_type_from_path(filepath)
+    if jaw_type is None:
+        logging.warning(f"路径中既不包含 upper 也不包含 lower，跳过: {filepath}")
+        continue
 
-    # if jaw_type == "upper":
-    #     rotated_point_cloud = rotate_point_cloud(point_cloud, axis='y', angle_deg=180)
-    #     rotated_point_cloud = rotate_point_cloud(rotated_point_cloud, axis='x', angle_deg=-35)
-    #     rotated_point_cloud = rotate_point_cloud(rotated_point_cloud, axis='z', angle_deg=180)
-    # else:
-    #     rotated_point_cloud = rotate_point_cloud(point_cloud, axis='x', angle_deg=-20)
+    if jaw_type == "upper":
+        rotated_point_cloud = rotate_point_cloud(point_cloud, axis='y', angle_deg=180)
+        rotated_point_cloud = rotate_point_cloud(rotated_point_cloud, axis='x', angle_deg=-35)
+        rotated_point_cloud = rotate_point_cloud(rotated_point_cloud, axis='z', angle_deg=180)
+    else:
+        # -20 x
+        rotated_point_cloud = rotate_point_cloud(point_cloud, axis='x', angle_deg=-20)
 
-    rotated_point_cloud = rotate_point_cloud(point_cloud, axis='y', angle_deg=180)
-    rotated_point_cloud = rotate_point_cloud(rotated_point_cloud, axis='x', angle_deg=-35)
-    rotated_point_cloud = rotate_point_cloud(rotated_point_cloud, axis='z', angle_deg=180)
 
     rotated_ply_path = os.path.join(rotated_output_folder, f"{file_name_without_ext}.ply")
     save_point_cloud_to_ply(rotated_point_cloud, rotated_ply_path)

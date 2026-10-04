@@ -8,8 +8,8 @@ from plyfile import PlyData, PlyElement
 
 
 # ===================== 直接改这里 =====================
-IN_ROOT = r"\\Desktop-76khoer\d\1.CY-SPACE\JiaoHuaYing\1.AllData"
-OUT_ROOT = r"\\Desktop-76khoer\d\1.CY-SPACE\JiaoHuaYing\1.AllData-PointCloud"
+IN_ROOT = r"Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\1.AllData\linshi"
+OUT_ROOT = r"Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\1.AllData-PointCloud"
 RECURSIVE = True
 
 FLIP_V = True

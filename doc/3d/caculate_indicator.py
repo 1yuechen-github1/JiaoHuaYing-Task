@@ -133,6 +133,8 @@ def evaluate_pointcloud_segmentation(file_path):
         gt_labels[gt_labels > 0] = 1
 
         pred_labels = data[:, 7].astype(int)  # 第8列是预测标签
+        pred_labels[pred_labels > 0] = 1
+        
         
         # 获取所有类别
         all_classes = np.unique(np.concatenate([gt_labels, pred_labels]))
@@ -220,6 +222,7 @@ def batch_evaluate_pointclouds(pointcloud_dir, output_excel_path):
     
     for file_path in pointcloud_files:
         results = evaluate_pointcloud_segmentation(str(file_path))
+        print(results)
         if results is not None:
             all_results.append(results)
     
@@ -255,8 +258,8 @@ def batch_evaluate_pointclouds(pointcloud_dir, output_excel_path):
 # 使用方法
 if __name__ == "__main__":
     # 配置路径
-    pointcloud_directory = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\shanghouya"  # 点云文件目录
-    output_excel_path = r"Y:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\shanghouya\evaluation_results.xlsx"  # 输出Excel文件路径
+    pointcloud_directory = r"E:\CY\JHY\JHY_HumanVsMachineMatch\角化龈分割结果_zy\人机比赛-zy"  # 点云文件目录
+    output_excel_path = r"E:\CY\JHY\JHY_HumanVsMachineMatch\角化龈分割结果_zy\人机比赛-zy\evaluation_results.xlsx"  # 输出Excel文件路径
     
     # 批量评估
     batch_evaluate_pointclouds(pointcloud_directory, output_excel_path)

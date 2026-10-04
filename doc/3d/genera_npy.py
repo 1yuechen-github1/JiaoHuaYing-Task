@@ -70,14 +70,14 @@ def estimate_normals(coord, radius=1.0, max_nn=30):
 
 
 def genera_npy(path):
-    save_root = r'Y:\1.CY-SPACE\JiaoHuaYing\1.AllData-PointCloud-QueYaQu-npy'
+    save_root = r'Z:\1.CY-SPACE\JiaoHuaYing\1.AllData-PointCloud-QueYaQu-npy'
 
     for file in os.listdir(path):
         print(file)
 
-        all_coord = []
-        all_color = []
-        all_scalar = []
+        # all_coord = []
+        # all_color = []
+        # all_scalar = []
         all_instance = []
 
         file_path = os.path.join(path, file)
@@ -101,35 +101,38 @@ def genera_npy(path):
             color = data[:, 3:6]
             scalar = data[:, 6]
 
-            all_coord.append(coord)
-            all_color.append(color)
-            all_scalar.append(scalar)
+            # all_coord.append(coord)
+            # all_color.append(color)
+            # all_scalar.append(scalar)
 
             # instance = np.full(coord.shape[0], instance_id, dtype=np.int32)
             # all_instance.append(instance)
 
-        if len(all_coord) == 0:
-            continue
+        # if len(all_coord) == 0:
+        #     continue
 
-        merged_coord = np.vstack(all_coord)
-        merged_color = np.vstack(all_color)
-        merged_scalar = np.concatenate(all_scalar)
+        # merged_coord = np.vstack(all_coord)
+        # merged_color = np.vstack(all_color)
+        # merged_scalar = np.concatenate(all_scalar)
         # instance = np.concatenate(all_instance)
-        instance = np.zeros(merged_coord.shape[0], dtype=np.int32)
+            merged_coord = coord
+            merged_color = color
+            merged_scalar = scalar
+            instance = np.zeros(merged_coord.shape[0], dtype=np.int32)
 
-        normal = estimate_normals(merged_coord, radius=1.0, max_nn=30)
-        segment = (merged_scalar > 0).astype(np.int32)
+            normal = estimate_normals(merged_coord, radius=1.0, max_nn=30)
+            segment = (merged_scalar > 0).astype(np.int32)
 
-        save_dir = os.path.join(save_root, file)
-        os.makedirs(save_dir, exist_ok=True)
+            save_dir = os.path.join(save_root, file2[0:-4])
+            os.makedirs(save_dir, exist_ok=True)
 
-        # np.save(os.path.join(save_dir, "coord.npy"), merged_coord.astype(np.float32))
-        # np.save(os.path.join(save_dir, "color.npy"), merged_color.astype(np.float32))
-        np.save(os.path.join(save_dir, "normal.npy"), normal.astype(np.float32))
-        # np.save(os.path.join(save_dir, "instance.npy"), instance.astype(np.int32))
-        # np.save(os.path.join(save_dir, "segment.npy"), segment.astype(np.int32))
-        # np.save(os.path.join(save_dir, "label.npy"), merged_scalar.astype(np.float32))
+            np.save(os.path.join(save_dir, "coord.npy"), merged_coord.astype(np.float32))
+            np.save(os.path.join(save_dir, "color.npy"), merged_color.astype(np.float32))
+            np.save(os.path.join(save_dir, "normal.npy"), normal.astype(np.float32))
+            np.save(os.path.join(save_dir, "instance.npy"), instance.astype(np.int32))
+            np.save(os.path.join(save_dir, "segment.npy"), segment.astype(np.int32))
+            np.save(os.path.join(save_dir, "label.npy"), merged_scalar.astype(np.float32))
 
 
-genera_npy(r'Y:\1.CY-SPACE\JiaoHuaYing\1.AllData-PointCloud-QueYaQu')
+genera_npy(r'Z:\1.CY-SPACE\JiaoHuaYing\1.AllData-PointCloud-QueYaQu')
 

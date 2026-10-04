@@ -299,8 +299,8 @@ def labelme_to_nnunet(labelme_dir, output_dir, dataset_name="MyDataset"):
     print("每个类别的像素数量：", class_counts)
 
     num_cases = processed_count
-    train_idx, val_idx,test_ids = split_cases_by_class(label_dir, class_ids,0.7,0.2)
-    create_splits_json(os.path.join(output_dir, dataset_name), case_names, train_idx, val_idx, test_ids)
+    # train_idx, val_idx,test_ids = split_cases_by_class(label_dir, class_ids,0.7,0.2)
+    # create_splits_json(os.path.join(output_dir, dataset_name), case_names, train_idx, val_idx, test_ids)
 
     
     print(f"\n转换完成！")
@@ -381,8 +381,8 @@ def verify_dataset(dataset_dir):
 
 if __name__ == "__main__":
     # 使用示例
-    labelme_directory = r"Z:\1.CY-SPACE\JiaoHuaYing\1.AllData-PNG\linshi\nnunet"  # 替换为你的LabelMe数据文件夹路径
-    output_directory = r"Z:\1.CY-SPACE\JiaoHuaYing\1.AllData-PNG\linshi\nnunet_output"  # 替换为输出路径
+    labelme_directory = r"Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\nnUnet2d\JSON"  # 替换为你的LabelMe数据文件夹路径
+    output_directory = r"Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\nnUnet2d\nnunet2d"  # 替换为输出路径
     dataset_name = "kousao"           # 你的数据集名称
     
     # 初始化类别映射字典
@@ -392,5 +392,5 @@ if __name__ == "__main__":
     labelme_to_nnunet(labelme_directory, output_directory, dataset_name)
     
     # 验证数据集
-    dataset_path = os.path.join(output_directory, dataset_name)
-    verify_dataset(dataset_path)
+    # dataset_path = os.path.join(output_directory, dataset_name)
+    # verify_dataset(dataset_path)

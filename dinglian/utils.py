@@ -131,6 +131,22 @@ def get_poin_list(poin_list, w_color = [0, 0, 1]):
     return pcd
 
 
+def fit_measure_arc(points, sort_axis, samples=120):
+    """对当前切片的原始测量点拟合并采样连续弧线。"""
+    points = np.asarray(points, dtype=float)
+    if points.shape[0] < 4:
+        return points
+
+    sort_axis = np.asarray(sort_axis, dtype=float)
+    ordered = points[np.argsort(points @ sort_axis)]
+    # 仅使用切片中的原始点；s=0 使曲线穿过这些点，不向切片外延伸。
+    try:
+        tck, _ = splprep(ordered.T, s=0.0, k=min(3, len(ordered) - 1))
+        return np.asarray(splev(np.linspace(0.0, 1.0, samples), tck)).T
+    except (ValueError, TypeError):
+        return ordered
+
+
 def create_coordinate_frame(center, x_axis, y_axis, z_axis, scale=1.0):
     """
     创建自定义坐标系。
@@ -211,6 +227,7 @@ def get_jhy_w(
     offsets = _build_slice_offsets(center_proj, projections, step_mm)
     slice_positions = [center_proj + off * step_mm for off in offsets]
 
+    # 同一批切片点既用于测量，也用于导出。适当加宽采样带，避免弧线断续。
     tolerance = step_mm / 30.0
     pcd_list = []
     dist_list = []
@@ -224,7 +241,9 @@ def get_jhy_w(
             slice_points = jhy_points[mask]
             dist = get_len(slice_points, cent_list[1])
             dist_list.append(dist)
-            pcd_list.append(get_poin_list(slice_points, [[0, 0, 1]]))
+            # 导出最短测量路径的加密点；该路径与 get_len 的弧长计算完全一致。
+            # pcd_list.append(get_poin_list(fit_measure_arc(slice_points, cent_list[1]), [[0, 0, 1]]))
+            pcd_list.append(get_poin_list(slice_points, [[0, 0, 1]]))  
             slice_points_all.append(slice_points)
 
         else:
@@ -251,10 +270,6 @@ def get_jhy_w(
             pcd_cur.colors = o3d.utility.Vector3dVector(colors_green)
             geoms.append(pcd_cur)
 
-        # vis(geoms, "measure_jhy_w")
-
-    # if len(slice_points_all) > 0:
-
 
     if return_offsets:
         return pcd_list, dist_list, offsets
@@ -276,12 +291,17 @@ def get_jhy_h(
     Measure keratinized gingiva height.
     """
     sample_axis = cent_list[1]
-    center = jhy_points[np.argmax(jhy_points[:, 2])]
+    if is_upper == 'upper':
+        center = jhy_points[np.argmax(jhy_points[:, 2])]
+    else:
+        center = np.mean(jhy_points, axis=0)
+    
     projections = np.dot(jhy_points, sample_axis)
     center_proj = np.dot(center, sample_axis)
     offsets = _build_slice_offsets(center_proj, projections, step_mm)
     slice_positions = [center_proj + off * step_mm for off in offsets]
 
+    # 同一批切片点既用于测量，也用于导出。适当加宽采样带，避免弧线断续。
     tolerance = step_mm / 30.0
     pcd_list = []
     dist_list = []
@@ -295,7 +315,9 @@ def get_jhy_h(
             slice_points = jhy_points[mask]
             dist = get_len(slice_points, cent_list[0])
             dist_list.append(dist)
-            pcd_list.append(get_poin_list(slice_points, [[0, 0, 1]]))
+            # 导出最短测量路径的加密点；该路径与 get_len 的弧长计算完全一致。
+            # pcd_list.append(get_poin_list(fit_measure_arc(slice_points, cent_list[0]), [[0, 0, 1]]))
+            pcd_list.append(get_poin_list(slice_points, [[0, 0, 1]])) 
             slice_points_all.append(slice_points)
 
 
@@ -325,9 +347,6 @@ def get_jhy_h(
             pcd_cur.colors = o3d.utility.Vector3dVector(colors_green)
             geoms.append(pcd_cur)
 
-        # vis(geoms, "measure_jhy_h")
-
-
 
     if return_offsets:
         return pcd_list, dist_list, offsets
@@ -350,41 +369,42 @@ def _vis_len_clusters(points, labels, win_name="get_len_clusters"):
 
 
 def get_len(points,axis):
-    # print('axis',axis)
-    radius = 200
+    # print('len(points):',len(points))
+    # pcd = o3d.geometry.PointCloud()
+    # pcd.points = o3d.utility.Vector3dVector(points)
+    # vis([pcd], '')
+
+    radius = 400
     points = np.asarray(points)
     if points.shape[0] < 2:
         return 0.0
 
     n = len(points)
-    G = nx.Graph()
-    # Ensure nodes exist even when no edges are added.
-    G.add_nodes_from(range(n))
-
+    graph = nx.Graph()
+    graph.add_nodes_from(range(n))
     kdt = cKDTree(points)
-    for i, p in enumerate(points):
-        idxs = kdt.query_ball_point(p, r=radius)
-        for j in idxs:
+    for i, point in enumerate(points):
+        for j in kdt.query_ball_point(point, r=radius):
             if i != j:
-                dist = np.linalg.norm(points[i] - points[j])
-                G.add_edge(i, j, weight=dist)
+                graph.add_edge(i, j, weight=np.linalg.norm(points[i] - points[j]))
 
-    if not nx.has_path(G, 0, n - 1):
+    if not nx.has_path(graph, 0, n - 1):
         return 0.0
 
-    length = nx.shortest_path_length(G, 0, n - 1, weight='weight')
+    length = nx.shortest_path_length(graph, 0, n - 1, weight='weight')
     # print("length", length)
     return float(length)
 
 
-def save_to_txt(pcd2, pcd_list_h, output, file, scalar, status):
+def save_to_txt(pcd2, pcd_list, output, file, scalar, status, offsets, target_offsets):
     points_array = np.asarray(pcd2.points)
     colors_array = np.asarray(pcd2.colors)
     colors_array = (colors_array * 255).astype(np.uint8)
     all_points = []
     all_colors = []
-    has_colors = all(p.has_colors() for p in pcd_list_h if p is not None)
-    for pcd in pcd_list_h:
+    selected_pcds = [pcd for offset, pcd in zip(offsets, pcd_list) if offset in target_offsets]
+    has_colors = all(p.has_colors() for p in selected_pcds if p is not None)
+    for pcd in selected_pcds:
         points = np.asarray(pcd.points)
         all_points.append(points)
         if has_colors and pcd.has_colors():
@@ -405,8 +425,8 @@ def save_to_txt(pcd2, pcd_list_h, output, file, scalar, status):
     final_scalar = np.concatenate([combined_scalar, scalar],axis=0)
 
     save_array = np.hstack([final_points, final_colors, final_scalar])
-    os.makedirs(os.path.join(output,status,'txt'), exist_ok=True)
-    np.savetxt(f"{output}\\{status}\\txt\\{file}",save_array,fmt="%.6f %.6f %.6f %.6f %.6f %.6f %.6f")
+    os.makedirs(os.path.join(output,status), exist_ok=True)
+    np.savetxt(f"{output}\\{status}\\{file}",save_array,fmt="%.6f %.6f %.6f %.6f %.6f %.6f %.6f")
 
 
 
@@ -426,10 +446,7 @@ def label_h(offset, is_upper):
     is_upper_case = str(is_upper).lower()
     # 上颌统一为偏颊侧；下颌按舌侧/颊侧区分
     if is_upper_case in {"upper", "up", "u", "maxilla"}:
-        if offset > 0:
-            return f"偏腭侧{abs(offset/2)}mm"
-        else:
-            return f"偏颊侧{abs(offset/2)}mm"
+        return f"偏颊侧{abs(offset/2)}mm"
 
     if offset > 0:
         return f"偏舌侧{offset/2}mm"
@@ -441,14 +458,22 @@ def append_measure_csv(csv_path, file, offsets, dists, label_h,is_upper):
     file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
 
     if is_upper != None:
+        is_upper_case = str(is_upper).lower()
+        # 长度：上颌只导出颊侧（offset >= 0）；下颌导出舌侧/颊侧两侧。
+        target_offsets = (
+            [off for off in TARGET_OFFSETS if off >= 0]
+            if is_upper_case in {"upper", "up", "u", "maxilla"}
+            else TARGET_OFFSETS
+        )
         with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["file"] + [f"{label_h(off, is_upper)}" for off in TARGET_OFFSETS])
-            writer.writerow([file] + [dist_by_offset.get(off, "") for off in TARGET_OFFSETS])
+                writer.writerow(["file"] + [label_h(off, is_upper) for off in target_offsets])
+            writer.writerow([file] + [dist_by_offset.get(off, 0) for off in target_offsets])
+
     else:
         with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
             if not file_exists:
                 writer.writerow(["file"] + [f"{label_h(off)}" for off in TARGET_OFFSETS])
-            writer.writerow([file] + [dist_by_offset.get(off, "") for off in TARGET_OFFSETS])
+            writer.writerow([file] + [dist_by_offset.get(off, 0) for off in TARGET_OFFSETS])
