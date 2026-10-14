@@ -14,6 +14,32 @@ DEBUG_VIS_GET_LEN_CLUSTERS = True
 
 TARGET_OFFSETS = [0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5]
 
+# 每个 offset 固定对应一种颜色（同一个 offset 在任何文件、任何输出中颜色一致），
+# 用于给切片弧上色，并把颜色名写进 CSV 列名，从而让本地保存的弧与 CSV 列一一对应。
+OFFSET_COLORS = {
+    0:  ("红色", [1.0, 0.0, 0.0]),
+    -1: ("绿色", [0.0, 1.0, 0.0]),
+    1:  ("蓝色", [0.0, 0.0, 1.0]),
+    -2: ("黄色", [1.0, 1.0, 0.0]),
+    2:  ("青色", [0.0, 1.0, 1.0]),
+    -3: ("品红", [1.0, 0.0, 1.0]),
+    3:  ("橙色", [1.0, 0.5, 0.0]),
+    -4: ("紫色", [0.5, 0.0, 1.0]),
+    4:  ("棕色", [0.6, 0.3, 0.0]),
+    -5: ("深绿", [0.0, 0.4, 0.0]),
+    5:  ("粉色", [1.0, 0.4, 0.7]),
+}
+
+
+def offset_color_name(offset):
+    """返回 offset 对应的颜色名，未定义时回退为白色。"""
+    return OFFSET_COLORS.get(offset, ("白色", [1.0, 1.0, 1.0]))[0]
+
+
+def offset_color_rgb(offset):
+    """返回 offset 对应的 RGB（0-1），未定义时回退为白色。"""
+    return OFFSET_COLORS.get(offset, ("白色", [1.0, 1.0, 1.0]))[1]
+
 
 def vis(pcd_list, file):
     o3d.visualization.draw_geometries(
@@ -233,7 +259,7 @@ def get_jhy_w(
     dist_list = []
     slice_points_all = []
 
-    for pos in slice_positions:
+    for offset, pos in zip(offsets, slice_positions):
         mask = np.abs(projections - pos) <= tolerance
         hit_count = int(np.count_nonzero(mask))
         slice_points = None
@@ -241,13 +267,13 @@ def get_jhy_w(
             slice_points = jhy_points[mask]
             dist = get_len(slice_points, cent_list[1])
             dist_list.append(dist)
-            # 导出最短测量路径的加密点；该路径与 get_len 的弧长计算完全一致。
-            # pcd_list.append(get_poin_list(fit_measure_arc(slice_points, cent_list[1]), [[0, 0, 1]]))
-            pcd_list.append(get_poin_list(slice_points, [[0, 0, 1]]))  
+            # 弧按 offset 对应颜色上色，颜色名会写进 CSV 列名，保证本地弧与列一一对应。
+            pcd_list.append(get_poin_list(slice_points, [offset_color_rgb(offset)]))
             slice_points_all.append(slice_points)
-
         else:
+            # 落空时占位，保持 pcd_list 与 offsets 等长，避免 save_to_txt 中 zip 错位。
             dist_list.append(0)
+            pcd_list.append(None)
 
         pcd = o3d.geometry.PointCloud()
         colors_blue = jhy_colors
@@ -307,7 +333,7 @@ def get_jhy_h(
     dist_list = []
     slice_points_all = []
 
-    for pos in slice_positions:
+    for offset, pos in zip(offsets, slice_positions):
         mask = np.abs(projections - pos) <= tolerance
         hit_count = int(np.count_nonzero(mask))
         slice_points = None
@@ -315,14 +341,13 @@ def get_jhy_h(
             slice_points = jhy_points[mask]
             dist = get_len(slice_points, cent_list[0])
             dist_list.append(dist)
-            # 导出最短测量路径的加密点；该路径与 get_len 的弧长计算完全一致。
-            # pcd_list.append(get_poin_list(fit_measure_arc(slice_points, cent_list[0]), [[0, 0, 1]]))
-            pcd_list.append(get_poin_list(slice_points, [[0, 0, 1]])) 
+            # 弧按 offset 对应颜色上色，颜色名会写进 CSV 列名，保证本地弧与列一一对应。
+            pcd_list.append(get_poin_list(slice_points, [offset_color_rgb(offset)]))
             slice_points_all.append(slice_points)
-
-
         else:
+            # 落空时占位，保持 pcd_list 与 offsets 等长，避免 save_to_txt 中 zip 错位。
             dist_list.append(0)
+            pcd_list.append(None)
 
         
         pcd = o3d.geometry.PointCloud()
@@ -402,8 +427,11 @@ def save_to_txt(pcd2, pcd_list, output, file, scalar, status, offsets, target_of
     colors_array = (colors_array * 255).astype(np.uint8)
     all_points = []
     all_colors = []
-    selected_pcds = [pcd for offset, pcd in zip(offsets, pcd_list) if offset in target_offsets]
-    has_colors = all(p.has_colors() for p in selected_pcds if p is not None)
+    selected_pcds = [
+        pcd for offset, pcd in zip(offsets, pcd_list)
+        if offset in target_offsets and pcd is not None
+    ]
+    has_colors = all(p.has_colors() for p in selected_pcds)
     for pcd in selected_pcds:
         points = np.asarray(pcd.points)
         all_points.append(points)
@@ -411,12 +439,17 @@ def save_to_txt(pcd2, pcd_list, output, file, scalar, status, offsets, target_of
             colors = np.asarray(pcd.colors)
             colors = (colors * 255).astype(np.uint8)
             all_colors.append(colors)
-    combined_points = np.concatenate(all_points, axis=0)
+    if not all_points:
+        combined_points = np.empty((0, 3))
+    else:
+        combined_points = np.concatenate(all_points, axis=0)
     combined_colors = None
     if all_colors and len(all_colors) == len(all_points):
         combined_colors = np.concatenate(all_colors, axis=0)
 
     final_points = np.concatenate([combined_points, points_array],axis=0)
+    if combined_colors is None:
+        combined_colors = np.zeros((combined_points.shape[0], 3), dtype=np.uint8)
     final_colors = np.concatenate([combined_colors, colors_array],axis=0)
     num_combined = combined_points.shape[0]
     combined_scalar = np.zeros((num_combined, 1))
@@ -453,6 +486,11 @@ def label_h(offset, is_upper):
     return f"偏颊侧{abs(offset/2)}mm"
 
 
+def _col_name(label, offset):
+    """列名带上该 offset 对应的颜色名，使 CSV 列与本地保存的弧颜色一致。"""
+    return f"{label}-{offset_color_name(offset)}"
+
+
 def append_measure_csv(csv_path, file, offsets, dists, label_h,is_upper):
     dist_by_offset = dict(zip(offsets, dists))
     file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
@@ -468,12 +506,12 @@ def append_measure_csv(csv_path, file, offsets, dists, label_h,is_upper):
         with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["file"] + [label_h(off, is_upper) for off in target_offsets])
+                writer.writerow(["file"] + [_col_name(label_h(off, is_upper), off) for off in target_offsets])
             writer.writerow([file] + [dist_by_offset.get(off, 0) for off in target_offsets])
 
     else:
         with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["file"] + [f"{label_h(off)}" for off in TARGET_OFFSETS])
+                writer.writerow(["file"] + [_col_name(label_h(off), off) for off in TARGET_OFFSETS])
             writer.writerow([file] + [dist_by_offset.get(off, 0) for off in TARGET_OFFSETS])

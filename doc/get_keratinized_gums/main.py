@@ -8,10 +8,10 @@ DISTANCE_THRESHOLD = 0.30
 CONNECT_RADIUS = 0.60
 MIN_COMPONENT_POINTS = 100
 
-keratinized_gums_dir = r'E:\CY\JHY\JHY_HumanVsMachineMatch\角化龈分割结果_zyy'
+keratinized_gums_dir = r'Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\带线分割测试(1)\带线分割测试\piontcloud\ai'
 missing_teeth_area_dir = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\1.AllData-MissingToothArea\cropped_debug'
 # log_txt = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\1.AllData-MissingToothArea\log.txt'
-output_dir = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\1.AllData-MissingToothArea\MissingToothArea'
+output_dir = r'Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\带线分割测试(1)\带线分割测试\piontcloud\merge'
 
 # 角化龈files
 # keratinized_gums_list = sorted(
@@ -22,10 +22,12 @@ output_dir = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\1.AllData-MissingTo
 #     if 'upp' not in file and 'Upp' not in file and 'low' not in file and 'Low' not in file 
 # )
 
-data_list = ['0002', '0004', '0010', '0010', '0011', '0013', '0017', '0019', '0021', '0024', '0031', 
-             '0036', '0039', '0043', '0043', '0047', '0049', '0054', '0055', '0059', '0061', '0065', 
-             '0068', '0073','0075', '0078', '0081', '0081', '0086', '0187', '0365', '0372', '0375', 
-             '0375', '0380']
+# data_list = ['0002', '0004', '0010', '0010', '0011', '0013', '0017', '0019', '0021', '0024', '0031', 
+#              '0036', '0039', '0043', '0043', '0047', '0049', '0054', '0055', '0059', '0061', '0065', 
+#              '0068', '0073','0075', '0078', '0081', '0081', '0086', '0187', '0365', '0372', '0375', 
+#              '0375', '0380']
+
+data_list = ['0002', '0004']
 
 keratinized_gums_files = sorted(
     file
@@ -69,13 +71,14 @@ for keratinized_gums_file in data_list:
                 colors = colors * 255.0
             data = np.hstack([points, colors])
             print('keratinized_gums_file:',keratinized_gums_file, is_maxilla)
-            if is_maxilla.isdigit() and int(is_maxilla) < 30:
-                data = rotate_point_cloud(data, "y", 180)
-                data = rotate_point_cloud(data, "x", -35)
-                keratinized_gums = rotate_point_cloud(data, "z", 180)
-            else:
-                keratinized_gums = rotate_point_cloud(data, "x", -20)
-
+            # 如果不需要旋转就注释掉
+            # if is_maxilla.isdigit() and int(is_maxilla) < 30:
+            #     data = rotate_point_cloud(data, "y", 180)
+            #     data = rotate_point_cloud(data, "x", -35)
+            #     keratinized_gums = rotate_point_cloud(data, "z", 180)
+            # else:
+            #     keratinized_gums = rotate_point_cloud(data, "x", -20)
+            keratinized_gums = rotate_point_cloud(data, "x", 0)
             candidate = []
             missing_tooth_area_file_copy = None
             for missing_tooth_area_file in missing_tooth_area_list:

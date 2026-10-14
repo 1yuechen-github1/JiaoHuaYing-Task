@@ -16,6 +16,7 @@ def get_args_parser():
     parser.add_argument("--output", type=str, help="输出目录")
     return parser
 
+# python code\dinglian\main.py  --keratinized_gingiva Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\核对数据后\pointcept-加上下颌位置信息-法向量-边界做数据增强\result-txt-test --rotake_oral_scan Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\test\rotake_oral_scan --output Z:\1.CY-SPACE\JiaoHuaYing\SupplementaryExperiments\核对数据后\pointcept-加上下颌位置信息-法向量-边界做数据增强\ou\gt
 
 
 if __name__ == "__main__":

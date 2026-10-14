@@ -162,9 +162,9 @@ def get_jaw_type_from_path(file_path):
     return None
 
 
-input_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\Add_2D_screenshot\pcd'
-output_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\Add_2D_screenshot\output'
-rotated_output_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\Add_2D_screenshot\output'
+input_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\外部测试集1\pointcloud'
+output_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\2d_project'
+rotated_output_folder = r'Z:\1.CY-SPACE\JiaoHuaYing\After3DVerification\外部测试集1\2d_project_rotated'
 
 os.makedirs(output_folder, exist_ok=True)
 os.makedirs(rotated_output_folder, exist_ok=True)
